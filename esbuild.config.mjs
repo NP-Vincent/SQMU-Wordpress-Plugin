@@ -8,6 +8,7 @@ await build({
   platform: 'browser',
   target: ['es2020'],
   globalName: 'MetaMaskWP',
+  external: ['react', 'react-dom'],
   sourcemap: true,
   minify: false
 });
