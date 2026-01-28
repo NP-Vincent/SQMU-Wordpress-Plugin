@@ -22,26 +22,32 @@ function metamask_dapp_register_scripts() {
     $asset_dir = plugin_dir_path(__FILE__) . 'assets/';
     $asset_url = plugin_dir_url(__FILE__) . 'assets/';
 
-    $vendor_file = $asset_dir . 'metamask-dapp.vendor.js';
     $app_file = $asset_dir . 'metamask-dapp.js';
     $style_file = $asset_dir . 'sqmu-dapp.css';
 
-    $vendor_version = file_exists($vendor_file) ? filemtime($vendor_file) : '0.1.0';
     $app_version = file_exists($app_file) ? filemtime($app_file) : '0.1.0';
     $style_version = file_exists($style_file) ? filemtime($style_file) : '0.1.0';
 
     wp_register_script(
-        'metamask-dapp-vendor',
-        $asset_url . 'metamask-dapp.vendor.js',
+        'metamask-dapp-ethers',
+        'https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js',
         array(),
-        $vendor_version,
+        '5.7.2',
+        true
+    );
+
+    wp_register_script(
+        'metamask-dapp-metamask-sdk',
+        'https://unpkg.com/@metamask/sdk@0.30.1/dist/browser/umd/metamask-sdk.js',
+        array(),
+        '0.30.1',
         true
     );
 
     wp_register_script(
         'metamask-dapp-app',
         $asset_url . 'metamask-dapp.js',
-        array('metamask-dapp-vendor'),
+        array('metamask-dapp-ethers', 'metamask-dapp-metamask-sdk'),
         $app_version,
         true
     );
@@ -71,7 +77,8 @@ function metamask_dapp_enqueue_assets() {
         metamask_dapp_get_config()
     );
 
-    wp_enqueue_script('metamask-dapp-vendor');
+    wp_enqueue_script('metamask-dapp-ethers');
+    wp_enqueue_script('metamask-dapp-metamask-sdk');
     wp_enqueue_script('metamask-dapp-app');
     wp_enqueue_style('sqmu-dapp');
 }

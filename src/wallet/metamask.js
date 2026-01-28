@@ -1,5 +1,5 @@
-import { MetaMaskSDK } from '@metamask/sdk';
-import { BrowserProvider } from 'ethers';
+import { MetaMaskSDK as ImportedMetaMaskSDK } from '@metamask/sdk';
+import { getEthers } from '../lib/ethers.js';
 
 const DEFAULT_DAPP_METADATA = {
   name: 'SQMU Distributor',
@@ -8,6 +8,10 @@ const DEFAULT_DAPP_METADATA = {
 
 export function createWalletState(config = {}) {
   const listeners = new Set();
+  const MetaMaskSDK =
+    typeof window !== 'undefined' && window.MetaMaskSDK
+      ? window.MetaMaskSDK
+      : ImportedMetaMaskSDK;
   const sdk = new MetaMaskSDK({
     dappMetadata: config.dappMetadata ?? DEFAULT_DAPP_METADATA,
     infuraAPIKey: config.infuraApiKey ?? config.infuraAPIKey
@@ -71,8 +75,9 @@ export function createWalletState(config = {}) {
       throw new Error('MetaMask provider not found. Ensure the extension is available.');
     }
     attachProvider(provider);
-    state.ethersProvider = new BrowserProvider(provider);
-    state.signer = state.connected ? await state.ethersProvider.getSigner() : null;
+    const ethers = getEthers();
+    state.ethersProvider = new ethers.providers.Web3Provider(provider);
+    state.signer = state.connected ? state.ethersProvider.getSigner() : null;
     const network = await state.ethersProvider.getNetwork();
     updateChainId(Number(network.chainId));
     notify();

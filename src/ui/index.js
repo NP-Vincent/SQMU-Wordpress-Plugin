@@ -1,4 +1,4 @@
-import { formatUnits } from 'ethers';
+import { getEthers } from '../lib/ethers.js';
 import {
   createDistributorContract,
   createDistributorReadOnly,
@@ -77,7 +77,8 @@ const setDisabled = (element, disabled) => {
 };
 
 export function mountUI(state, config = {}) {
-  const setup = () => {
+    const setup = () => {
+      const ethers = getEthers();
     const scopedRoot = config.mountSelector
       ? document.querySelector(config.mountSelector)
       : null;
@@ -387,7 +388,7 @@ export function mountUI(state, config = {}) {
             sqmuAmount,
             decimals
           );
-          const formatted = formatUnits(totalPrice, decimals);
+          const formatted = ethers.utils.formatUnits(totalPrice, decimals);
           renderActionStatus(`Estimated total: ${formatted} ${symbol}`);
         } catch (error) {
           renderActionError('Estimate', error);
