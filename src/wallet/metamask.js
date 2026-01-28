@@ -79,6 +79,17 @@ export function createWalletState(config = {}) {
     return state;
   };
 
+  state.disconnect = async () => {
+    if (typeof sdk.disconnect === 'function') {
+      await sdk.disconnect();
+    }
+    state.connected = false;
+    state.account = null;
+    state.signer = null;
+    state.ethersProvider = null;
+    notify();
+  };
+
   attachProvider(sdk.getProvider());
 
   return state;
