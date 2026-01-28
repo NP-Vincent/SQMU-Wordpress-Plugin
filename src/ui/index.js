@@ -24,6 +24,32 @@ const renderStatus = (status, detail) => {
   status.textContent = detail;
 };
 
+const shortenErrorMessage = (message, maxLength = 120) => {
+  if (!message) return '';
+  const firstLine = message.split('\n')[0].trim();
+  if (firstLine.length <= maxLength) return firstLine;
+  return `${firstLine.slice(0, maxLength - 3)}...`;
+};
+
+const formatErrorMessage = (error) => {
+  const code =
+    error?.code ?? error?.error?.code ?? error?.data?.code ?? null;
+  if (code === 4001) {
+    return 'User rejected the request.';
+  }
+  if (code === -32002) {
+    return 'Request already pending in wallet.';
+  }
+  const message = shortenErrorMessage(
+    typeof error === 'string' ? error : error?.message || 'Unknown error.'
+  );
+  return message || 'Unknown error.';
+};
+
+const renderActionError = (status, actionLabel, error) => {
+  renderStatus(status, `${actionLabel} failed: ${formatErrorMessage(error)}`);
+};
+
 const shorten = (value) =>
   value ? `${value.slice(0, 6)}...${value.slice(-4)}` : 'Not connected';
 
@@ -176,7 +202,7 @@ export function mountUI(state, config = {}) {
       await state.connect();
       renderStatus(actionStatus, 'Connected.');
     } catch (error) {
-      renderStatus(actionStatus, `Connection failed: ${error.message}`);
+      renderActionError(actionStatus, 'Connection', error);
     }
   });
 
@@ -204,7 +230,7 @@ export function mountUI(state, config = {}) {
       ].join('\n');
       renderStatus(actionStatus, 'Property loaded.');
     } catch (error) {
-      renderStatus(actionStatus, `Property lookup failed: ${error.message}`);
+      renderActionError(actionStatus, 'Property lookup', error);
     }
   });
 
@@ -216,7 +242,7 @@ export function mountUI(state, config = {}) {
       updateTokensList(tokens);
       renderStatus(actionStatus, 'Payment tokens loaded.');
     } catch (error) {
-      renderStatus(actionStatus, `Token load failed: ${error.message}`);
+      renderActionError(actionStatus, 'Token load', error);
     }
   });
 
@@ -253,7 +279,7 @@ export function mountUI(state, config = {}) {
         `Estimated total: ${formatted} ${symbol}`
       );
     } catch (error) {
-      renderStatus(actionStatus, `Estimate failed: ${error.message}`);
+      renderActionError(actionStatus, 'Estimate', error);
     }
   });
 
@@ -283,7 +309,7 @@ export function mountUI(state, config = {}) {
       await tx.wait();
       renderStatus(actionStatus, 'Approval confirmed.');
     } catch (error) {
-      renderStatus(actionStatus, `Approval failed: ${error.message}`);
+      renderActionError(actionStatus, 'Approval', error);
     }
   });
 
@@ -308,7 +334,7 @@ export function mountUI(state, config = {}) {
       await tx.wait();
       renderStatus(actionStatus, 'Purchase confirmed.');
     } catch (error) {
-      renderStatus(actionStatus, `Purchase failed: ${error.message}`);
+      renderActionError(actionStatus, 'Purchase', error);
     }
   });
 
