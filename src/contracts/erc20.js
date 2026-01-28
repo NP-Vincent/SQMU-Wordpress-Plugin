@@ -1,4 +1,4 @@
-import { Contract } from 'ethers';
+import { getEthers } from '../lib/ethers.js';
 
 const erc20Abi = [
   'function approve(address spender, uint256 amount) external returns (bool)',
@@ -8,5 +8,6 @@ const erc20Abi = [
 ];
 
 export function createErc20Contract({ signer, address }) {
+  const { Contract } = getEthers();
   return new Contract(address, erc20Abi, signer);
 }
