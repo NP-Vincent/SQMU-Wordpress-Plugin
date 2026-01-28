@@ -12,14 +12,13 @@ export function createWalletState(config = {}) {
     dappMetadata: config.dappMetadata ?? DEFAULT_DAPP_METADATA,
     infuraAPIKey: config.infuraApiKey ?? config.infuraAPIKey
   });
-  const provider = sdk.getProvider();
 
   const state = {
     connected: false,
     account: null,
     chainId: config.chainId ?? null,
     sdk,
-    provider,
+    provider: null,
     ethersProvider: null,
     signer: null,
     subscribe(listener) {
@@ -42,10 +41,36 @@ export function createWalletState(config = {}) {
     }
   };
 
+  const attachProvider = (provider) => {
+    if (!provider || provider === state.provider) {
+      return;
+    }
+    state.provider = provider;
+    if (provider.on) {
+      provider.on('accountsChanged', (accounts) => {
+        state.account = accounts?.[0] ?? null;
+        state.connected = Boolean(state.account);
+        notify();
+      });
+
+      provider.on('chainChanged', (chainId) => {
+        updateChainId(chainId);
+        notify();
+      });
+    }
+  };
+
   state.connect = async () => {
     const accounts = await sdk.connect();
     state.connected = Array.isArray(accounts) && accounts.length > 0;
     state.account = accounts?.[0] ?? null;
+    const provider =
+      sdk.getProvider() ||
+      (typeof window !== 'undefined' ? window.ethereum : null);
+    if (!provider) {
+      throw new Error('MetaMask provider not found. Ensure the extension is available.');
+    }
+    attachProvider(provider);
     state.ethersProvider = new BrowserProvider(provider);
     state.signer = state.connected ? await state.ethersProvider.getSigner() : null;
     const network = await state.ethersProvider.getNetwork();
@@ -54,18 +79,7 @@ export function createWalletState(config = {}) {
     return state;
   };
 
-  if (provider?.on) {
-    provider.on('accountsChanged', (accounts) => {
-      state.account = accounts?.[0] ?? null;
-      state.connected = Boolean(state.account);
-      notify();
-    });
-
-    provider.on('chainChanged', (chainId) => {
-      updateChainId(chainId);
-      notify();
-    });
-  }
+  attachProvider(sdk.getProvider());
 
   return state;
 }
