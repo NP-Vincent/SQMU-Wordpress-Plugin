@@ -1,49 +1,32 @@
-.wp-block-input,
-.wp-block-select {
+.wp-block-group.sqmu-listing-buy,
+.wp-block-group.sqmu-portfolio {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sqmu-listing-buy .wp-block-group,
+.sqmu-portfolio .wp-block-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sqmu-listing-buy .wp-block-input,
+.sqmu-listing-buy .wp-block-select,
+.sqmu-portfolio .wp-block-input {
   width: 100%;
+  max-width: 24rem;
+  padding: 0.5rem;
   font-size: 1rem;
-  padding: 0.5em;
 }
 
-.sqmu-listing-buy > * + *,
-.sqmu-portfolio > * + *,
-.sqmu-private-portfolio > * + *,
-.sqmu-public-listings > * + * {
-  margin-top: 1em;
-}
-
-.sqmu-heading,
-.sqmu-subheading,
-.sqmu-field-label {
-  font-weight: bold;
+.sqmu-listing-buy .wp-block-button .wp-block-button__link,
+.sqmu-portfolio .wp-block-button .wp-block-button__link {
+  width: 100%;
+  text-align: center;
 }
 
 .sqmu-hidden {
   display: none;
-}
-
-.sqmu-table {
-  border-collapse: collapse;
-  margin-top: 1em;
-}
-
-.sqmu-table th,
-.sqmu-table td {
-  padding: 0.5em 1em;
-  border: 1px solid #ccc;
-  text-align: left;
-}
-
-.sqmu-table tfoot td {
-  font-weight: bold;
-}
-
-#listing-table {
-  display: block;
-  overflow-x: auto;
-}
-
-#listing-table th,
-#listing-table td {
-  white-space: nowrap;
 }
