@@ -10,33 +10,61 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-function metamask_dapp_enqueue_assets() {
-    $asset_file = plugin_dir_path(__FILE__) . 'assets/metamask-dapp.js';
-    $asset_path = plugin_dir_url(__FILE__) . 'assets/metamask-dapp.js';
-    $asset_version = file_exists($asset_file) ? filemtime($asset_file) : '0.1.0';
+function metamask_dapp_register_scripts() {
+    static $registered = false;
 
-    wp_register_script('metamask-dapp', $asset_path, array(), $asset_version, true);
+    if ($registered) {
+        return;
+    }
 
-    $config = array(
+    $registered = true;
+
+    $asset_dir = plugin_dir_path(__FILE__) . 'assets/';
+    $asset_url = plugin_dir_url(__FILE__) . 'assets/';
+
+    $vendor_file = $asset_dir . 'metamask-dapp.vendor.js';
+    $app_file = $asset_dir . 'metamask-dapp.js';
+
+    $vendor_version = file_exists($vendor_file) ? filemtime($vendor_file) : '0.1.0';
+    $app_version = file_exists($app_file) ? filemtime($app_file) : '0.1.0';
+
+    wp_register_script(
+        'metamask-dapp-vendor',
+        $asset_url . 'metamask-dapp.vendor.js',
+        array(),
+        $vendor_version,
+        true
+    );
+
+    wp_register_script(
+        'metamask-dapp-app',
+        $asset_url . 'metamask-dapp.js',
+        array('metamask-dapp-vendor'),
+        $app_version,
+        true
+    );
+}
+add_action('wp_enqueue_scripts', 'metamask_dapp_register_scripts');
+
+function metamask_dapp_get_config() {
+    return array(
         'chainId' => null,
         'mountSelector' => '#metamask-dapp'
     );
-
-    wp_add_inline_script(
-        'metamask-dapp',
-        'window.METAMASK_DAPP_CONFIG = ' . wp_json_encode($config) . ';',
-        'before'
-    );
-
-    wp_add_inline_script(
-        'metamask-dapp',
-        'window.MetaMaskWP && window.MetaMaskWP.initMetaMaskDapp(window.METAMASK_DAPP_CONFIG || {});',
-        'after'
-    );
-
-    wp_enqueue_script('metamask-dapp');
 }
-add_action('wp_enqueue_scripts', 'metamask_dapp_enqueue_assets');
+
+function metamask_dapp_enqueue_assets() {
+    metamask_dapp_register_scripts();
+
+    wp_localize_script(
+        'metamask-dapp-app',
+        'metamaskDappConfig',
+        metamask_dapp_get_config()
+    );
+
+    wp_enqueue_script('metamask-dapp-vendor');
+    wp_enqueue_script('metamask-dapp-app');
+}
 
 function sqmu_render_template($template_name) {
     $template_path = plugin_dir_path(__FILE__) . 'templates/' . $template_name;
@@ -51,11 +79,13 @@ function sqmu_render_template($template_name) {
 }
 
 function sqmu_listing_shortcode() {
+    metamask_dapp_enqueue_assets();
     return sqmu_render_template('listing-buy.php');
 }
 add_shortcode('sqmu_listing', 'sqmu_listing_shortcode');
 
 function sqmu_portfolio_shortcode() {
+    metamask_dapp_enqueue_assets();
     return sqmu_render_template('portfolio.php');
 }
 add_shortcode('sqmu_portfolio', 'sqmu_portfolio_shortcode');
