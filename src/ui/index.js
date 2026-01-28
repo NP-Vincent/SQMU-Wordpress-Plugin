@@ -24,14 +24,23 @@ const renderStatus = (status, detail) => {
   status.textContent = detail;
 };
 
-const shortenErrorMessage = (message, maxLength = 120) => {
-  if (!message) return '';
-  const firstLine = message.split('\n')[0].trim();
-  if (firstLine.length <= maxLength) return firstLine;
-  return `${firstLine.slice(0, maxLength - 3)}...`;
+const stringifyError = (error) => {
+  try {
+    return JSON.stringify(error, null, 2);
+  } catch (stringifyErrorValue) {
+    return String(error ?? 'Unknown error.');
+  }
 };
 
 const formatErrorMessage = (error) => {
+  if (typeof error === 'string') {
+    return error;
+  }
+  const message =
+    error?.message || error?.data?.message || error?.error?.message;
+  if (message) {
+    return message;
+  }
   const code =
     error?.code ?? error?.error?.code ?? error?.data?.code ?? null;
   if (code === 4001) {
@@ -40,14 +49,7 @@ const formatErrorMessage = (error) => {
   if (code === -32002) {
     return 'Request already pending in wallet.';
   }
-  const message = shortenErrorMessage(
-    typeof error === 'string' ? error : error?.message || 'Unknown error.'
-  );
-  return message || 'Unknown error.';
-};
-
-const renderActionError = (status, actionLabel, error) => {
-  renderStatus(status, `${actionLabel} failed: ${formatErrorMessage(error)}`);
+  return stringifyError(error);
 };
 
 const shorten = (value) =>
@@ -138,7 +140,68 @@ export function mountUI(state, config = {}) {
   buyButton.type = 'button';
   buyButton.textContent = 'Buy SQMU';
 
+  const actionStatusWrapper = document.createElement('div');
+  actionStatusWrapper.style.display = 'flex';
+  actionStatusWrapper.style.flexDirection = 'column';
+  actionStatusWrapper.style.gap = '8px';
+
   const actionStatus = document.createElement('p');
+  actionStatus.style.margin = '0';
+  actionStatus.style.whiteSpace = 'pre-wrap';
+  actionStatus.style.wordBreak = 'break-word';
+
+  const copyErrorButton = document.createElement('button');
+  copyErrorButton.type = 'button';
+  copyErrorButton.textContent = 'Copy error';
+  copyErrorButton.style.display = 'none';
+  copyErrorButton.dataset.errorText = '';
+
+  const resetCopyButtonLabel = () => {
+    copyErrorButton.textContent = 'Copy error';
+  };
+
+  const copyErrorToClipboard = async () => {
+    const errorText = copyErrorButton.dataset.errorText;
+    if (!errorText) {
+      return;
+    }
+    const previousLabel = copyErrorButton.textContent;
+    try {
+      await navigator.clipboard.writeText(errorText);
+      copyErrorButton.textContent = 'Copied!';
+    } catch (copyError) {
+      const textarea = document.createElement('textarea');
+      textarea.value = errorText;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      copyErrorButton.textContent = 'Copied!';
+    }
+    setTimeout(() => {
+      copyErrorButton.textContent = previousLabel;
+    }, 1500);
+  };
+
+  copyErrorButton.addEventListener('click', copyErrorToClipboard);
+
+  const renderActionStatus = (detail) => {
+    renderStatus(actionStatus, detail);
+    copyErrorButton.style.display = 'none';
+    copyErrorButton.dataset.errorText = '';
+    resetCopyButtonLabel();
+  };
+
+  const renderActionError = (actionLabel, error) => {
+    const errorMessage = formatErrorMessage(error);
+    const detail = `${actionLabel} failed:\n${errorMessage}`;
+    renderStatus(actionStatus, detail);
+    copyErrorButton.style.display = 'inline-flex';
+    copyErrorButton.dataset.errorText = detail;
+    resetCopyButtonLabel();
+  };
 
   const getContractAddress = () =>
     contractAddressInput.value.trim() ||
@@ -197,17 +260,17 @@ export function mountUI(state, config = {}) {
   };
 
   connectButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Connecting to MetaMask...');
+    renderActionStatus('Connecting to MetaMask...');
     try {
       await state.connect();
-      renderStatus(actionStatus, 'Connected.');
+      renderActionStatus('Connected.');
     } catch (error) {
-      renderActionError(actionStatus, 'Connection', error);
+      renderActionError('Connection', error);
     }
   });
 
   fetchPropertyButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Fetching property info...');
+    renderActionStatus('Fetching property info...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
       if (!propertyCode) {
@@ -228,26 +291,26 @@ export function mountUI(state, config = {}) {
         `Active: ${statusValue ? 'Yes' : 'No'}`,
         `Available SQMU: ${available}`
       ].join('\n');
-      renderStatus(actionStatus, 'Property loaded.');
+      renderActionStatus('Property loaded.');
     } catch (error) {
-      renderActionError(actionStatus, 'Property lookup', error);
+      renderActionError('Property lookup', error);
     }
   });
 
   refreshTokensButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Loading payment tokens...');
+    renderActionStatus('Loading payment tokens...');
     try {
       const contract = contractForRead();
       const tokens = await contract.getPaymentTokens();
       updateTokensList(tokens);
-      renderStatus(actionStatus, 'Payment tokens loaded.');
+      renderActionStatus('Payment tokens loaded.');
     } catch (error) {
-      renderActionError(actionStatus, 'Token load', error);
+      renderActionError('Token load', error);
     }
   });
 
   estimateButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Estimating price...');
+    renderActionStatus('Estimating price...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
       const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
@@ -274,17 +337,14 @@ export function mountUI(state, config = {}) {
         decimals
       );
       const formatted = formatUnits(totalPrice, decimals);
-      renderStatus(
-        actionStatus,
-        `Estimated total: ${formatted} ${symbol}`
-      );
+      renderActionStatus(`Estimated total: ${formatted} ${symbol}`);
     } catch (error) {
-      renderActionError(actionStatus, 'Estimate', error);
+      renderActionError('Estimate', error);
     }
   });
 
   approveButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Approving payment...');
+    renderActionStatus('Approving payment...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
       const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
@@ -305,16 +365,16 @@ export function mountUI(state, config = {}) {
         decimals
       );
       const tx = await erc20.approve(getContractAddress(), totalPrice);
-      renderStatus(actionStatus, `Approval submitted: ${tx.hash}`);
+      renderActionStatus(`Approval submitted: ${tx.hash}`);
       await tx.wait();
-      renderStatus(actionStatus, 'Approval confirmed.');
+      renderActionStatus('Approval confirmed.');
     } catch (error) {
-      renderActionError(actionStatus, 'Approval', error);
+      renderActionError('Approval', error);
     }
   });
 
   buyButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Submitting purchase...');
+    renderActionStatus('Submitting purchase...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
       const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
@@ -330,11 +390,11 @@ export function mountUI(state, config = {}) {
         tokenAddress,
         agentCode
       );
-      renderStatus(actionStatus, `Transaction submitted: ${tx.hash}`);
+      renderActionStatus(`Transaction submitted: ${tx.hash}`);
       await tx.wait();
-      renderStatus(actionStatus, 'Purchase confirmed.');
+      renderActionStatus('Purchase confirmed.');
     } catch (error) {
-      renderActionError(actionStatus, 'Purchase', error);
+      renderActionError('Purchase', error);
     }
   });
 
@@ -357,5 +417,7 @@ export function mountUI(state, config = {}) {
   mount.appendChild(estimateButton);
   mount.appendChild(approveButton);
   mount.appendChild(buyButton);
-  mount.appendChild(actionStatus);
+  actionStatusWrapper.appendChild(actionStatus);
+  actionStatusWrapper.appendChild(copyErrorButton);
+  mount.appendChild(actionStatusWrapper);
 }
