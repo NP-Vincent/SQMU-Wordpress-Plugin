@@ -360,10 +360,11 @@ export function mountUI(state, config = {}) {
   approveButton.addEventListener('click', async () => {
     renderActionStatus('Approving payment...');
     try {
+      const owner = state.account;
       const propertyCode = propertyCodeInput.value.trim();
       const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
       const tokenAddress = paymentTokenSelect.value.trim();
-      if (!propertyCode || sqmuAmount === null || !tokenAddress) {
+      if (!owner || !propertyCode || sqmuAmount === null || !tokenAddress) {
         throw new Error('Fill property, amount, and token.');
       }
       const contract = contractForRead();
@@ -378,6 +379,12 @@ export function mountUI(state, config = {}) {
         sqmuAmount,
         decimals
       );
+      const spender = getContractAddress();
+      const currentAllowance = await erc20.allowance(owner, spender);
+      if (currentAllowance >= totalPrice) {
+        renderActionStatus('Approval not needed. Allowance is sufficient.');
+        return;
+      }
       const tx = await erc20.approve(getContractAddress(), totalPrice);
       renderActionStatus(`Approval submitted: ${tx.hash}`);
       await tx.wait();
