@@ -42,6 +42,7 @@ metamask-wp-dapp/
 │  └─ readme.txt
 │
 ├─ dist/                   # Local build output (gitignored)
+├─ reference-only/         # Reference materials only (not for direct use)
 │
 ├─ .github/workflows/
 │  └─ wpcom.yml            # Build + package + deploy workflow
@@ -201,6 +202,12 @@ This repository is **WordPress‑first, dApp‑capable by design**.
 
 ---
 
+## Reference-Only Materials
+
+Files in the `reference-only/` folder exist solely to aid development of the plugin and shortcodes. They are **not** meant to be used as-is in production code or copied directly into the implementation.
+
+---
+
 ## Evolution Path (Intentional)
 
 This baseline supports incremental expansion without architectural change:
@@ -224,4 +231,3 @@ All without changing:
 This repository is the **reset point**.
 
 Anything not aligned with this document is considered legacy or experimental and should not be merged without explicit justification.
-
