@@ -9,6 +9,7 @@ This repository defines a clean baseline for a MetaMask WordPress dApp plugin. F
 - Do not commit build output in `dist/`.
 - Use deterministic builds and a single public JS initializer.
 - Prefer small, focused files with clear responsibilities.
+- Treat the `reference-only/` folder as reference material only; its files are not meant to be used as-is.
 
 ## Pull Request Notes
 - Summarize changes and tests in the PR body.
