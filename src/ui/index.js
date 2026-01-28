@@ -7,6 +7,7 @@ import {
 import { createErc20Contract } from '../contracts/erc20.js';
 
 const USD_DECIMALS = 18n;
+const SQMU_DECIMALS = 2n;
 
 const createField = (labelText, input) => {
   const wrapper = document.createElement('label');
@@ -26,14 +27,15 @@ const renderStatus = (status, detail) => {
 const shorten = (value) =>
   value ? `${value.slice(0, 6)}...${value.slice(-4)}` : 'Not connected';
 
-const parseAmount = (value) => {
+const parseSqmuAmount = (value) => {
   const trimmed = value.trim();
   if (!trimmed) return null;
-  try {
-    return BigInt(trimmed);
-  } catch (error) {
-    return null;
-  }
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return null;
+  const [wholePart, fractionPart = ''] = trimmed.split('.');
+  if (fractionPart.length > Number(SQMU_DECIMALS)) return null;
+  const paddedFraction = fractionPart.padEnd(Number(SQMU_DECIMALS), '0');
+  const base = 10n ** SQMU_DECIMALS;
+  return BigInt(wholePart) * base + BigInt(paddedFraction);
 };
 
 const calculateTotalPrice = (priceUSD, sqmuAmount, tokenDecimals) => {
@@ -91,8 +93,8 @@ export function mountUI(state, config = {}) {
 
   const sqmuAmountInput = document.createElement('input');
   sqmuAmountInput.type = 'number';
-  sqmuAmountInput.min = '1';
-  sqmuAmountInput.step = '1';
+  sqmuAmountInput.min = '0.01';
+  sqmuAmountInput.step = '0.01';
 
   const agentCodeInput = document.createElement('input');
   agentCodeInput.type = 'text';
@@ -222,7 +224,7 @@ export function mountUI(state, config = {}) {
     renderStatus(actionStatus, 'Estimating price...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
-      const sqmuAmount = parseAmount(sqmuAmountInput.value);
+      const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
       if (!propertyCode || sqmuAmount === null) {
         throw new Error('Enter property code and SQMU amount.');
       }
@@ -259,7 +261,7 @@ export function mountUI(state, config = {}) {
     renderStatus(actionStatus, 'Approving payment...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
-      const sqmuAmount = parseAmount(sqmuAmountInput.value);
+      const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
       const tokenAddress = paymentTokenSelect.value.trim();
       if (!propertyCode || sqmuAmount === null || !tokenAddress) {
         throw new Error('Fill property, amount, and token.');
@@ -289,7 +291,7 @@ export function mountUI(state, config = {}) {
     renderStatus(actionStatus, 'Submitting purchase...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
-      const sqmuAmount = parseAmount(sqmuAmountInput.value);
+      const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
       const tokenAddress = paymentTokenSelect.value.trim();
       if (!propertyCode || sqmuAmount === null || !tokenAddress) {
         throw new Error('Fill property, amount, and token.');
