@@ -95,6 +95,10 @@ export function mountUI(state, config = {}) {
   connectButton.type = 'button';
   connectButton.textContent = 'Connect MetaMask';
 
+  const disconnectButton = document.createElement('button');
+  disconnectButton.type = 'button';
+  disconnectButton.textContent = 'Disconnect wallet';
+
   const contractAddressInput = document.createElement('input');
   contractAddressInput.type = 'text';
   contractAddressInput.placeholder = '0x...';
@@ -269,6 +273,16 @@ export function mountUI(state, config = {}) {
     }
   });
 
+  disconnectButton.addEventListener('click', async () => {
+    renderStatus(actionStatus, 'Disconnecting wallet...');
+    try {
+      await state.disconnect?.();
+      renderStatus(actionStatus, 'Disconnected.');
+    } catch (error) {
+      renderActionError(actionStatus, 'Disconnect', error);
+    }
+  });
+
   fetchPropertyButton.addEventListener('click', async () => {
     renderActionStatus('Fetching property info...');
     try {
@@ -406,6 +420,7 @@ export function mountUI(state, config = {}) {
   mount.appendChild(accountLine);
   mount.appendChild(chainLine);
   mount.appendChild(connectButton);
+  mount.appendChild(disconnectButton);
   mount.appendChild(createField('Distributor contract address', contractAddressInput));
   mount.appendChild(createField('Property code', propertyCodeInput));
   mount.appendChild(fetchPropertyButton);
