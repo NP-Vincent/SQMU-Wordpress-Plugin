@@ -24,9 +24,11 @@ function metamask_dapp_register_scripts() {
 
     $vendor_file = $asset_dir . 'metamask-dapp.vendor.js';
     $app_file = $asset_dir . 'metamask-dapp.js';
+    $style_file = $asset_dir . 'sqmu-dapp.css';
 
     $vendor_version = file_exists($vendor_file) ? filemtime($vendor_file) : '0.1.0';
     $app_version = file_exists($app_file) ? filemtime($app_file) : '0.1.0';
+    $style_version = file_exists($style_file) ? filemtime($style_file) : '0.1.0';
 
     wp_register_script(
         'metamask-dapp-vendor',
@@ -42,6 +44,13 @@ function metamask_dapp_register_scripts() {
         array('metamask-dapp-vendor'),
         $app_version,
         true
+    );
+
+    wp_register_style(
+        'sqmu-dapp',
+        $asset_url . 'sqmu-dapp.css',
+        array(),
+        $style_version
     );
 }
 add_action('wp_enqueue_scripts', 'metamask_dapp_register_scripts');
@@ -64,6 +73,7 @@ function metamask_dapp_enqueue_assets() {
 
     wp_enqueue_script('metamask-dapp-vendor');
     wp_enqueue_script('metamask-dapp-app');
+    wp_enqueue_style('sqmu-dapp');
 }
 
 function sqmu_render_template($template_name) {

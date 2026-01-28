@@ -1,0 +1,49 @@
+.wp-block-input,
+.wp-block-select {
+  width: 100%;
+  font-size: 1rem;
+  padding: 0.5em;
+}
+
+.sqmu-listing-buy > * + *,
+.sqmu-portfolio > * + *,
+.sqmu-private-portfolio > * + *,
+.sqmu-public-listings > * + * {
+  margin-top: 1em;
+}
+
+.sqmu-heading,
+.sqmu-subheading,
+.sqmu-field-label {
+  font-weight: bold;
+}
+
+.sqmu-hidden {
+  display: none;
+}
+
+.sqmu-table {
+  border-collapse: collapse;
+  margin-top: 1em;
+}
+
+.sqmu-table th,
+.sqmu-table td {
+  padding: 0.5em 1em;
+  border: 1px solid #ccc;
+  text-align: left;
+}
+
+.sqmu-table tfoot td {
+  font-weight: bold;
+}
+
+#listing-table {
+  display: block;
+  overflow-x: auto;
+}
+
+#listing-table th,
+#listing-table td {
+  white-space: nowrap;
+}
