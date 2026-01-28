@@ -38,7 +38,24 @@ function metamask_dapp_enqueue_assets() {
 }
 add_action('wp_enqueue_scripts', 'metamask_dapp_enqueue_assets');
 
-function metamask_dapp_shortcode() {
-    return '<div id="metamask-dapp"></div>';
+function sqmu_render_template($template_name) {
+    $template_path = plugin_dir_path(__FILE__) . 'templates/' . $template_name;
+
+    if (!file_exists($template_path)) {
+        return '';
+    }
+
+    ob_start();
+    include $template_path;
+    return ob_get_clean();
 }
-add_shortcode('metamask_dapp', 'metamask_dapp_shortcode');
+
+function sqmu_listing_shortcode() {
+    return sqmu_render_template('listing-buy.php');
+}
+add_shortcode('sqmu_listing', 'sqmu_listing_shortcode');
+
+function sqmu_portfolio_shortcode() {
+    return sqmu_render_template('portfolio.php');
+}
+add_shortcode('sqmu_portfolio', 'sqmu_portfolio_shortcode');
