@@ -11,9 +11,11 @@ if (!defined('ABSPATH')) {
 }
 
 function metamask_dapp_enqueue_assets() {
+    $asset_file = plugin_dir_path(__FILE__) . 'assets/metamask-dapp.js';
     $asset_path = plugin_dir_url(__FILE__) . 'assets/metamask-dapp.js';
+    $asset_version = file_exists($asset_file) ? filemtime($asset_file) : '0.1.0';
 
-    wp_register_script('metamask-dapp', $asset_path, array(), '0.1.0', true);
+    wp_register_script('metamask-dapp', $asset_path, array(), $asset_version, true);
 
     $config = array(
         'chainId' => null,
