@@ -29,25 +29,9 @@ function metamask_dapp_register_scripts() {
     $style_version = file_exists($style_file) ? filemtime($style_file) : '0.1.0';
 
     wp_register_script(
-        'metamask-dapp-ethers',
-        'https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js',
-        array(),
-        '5.7.2',
-        true
-    );
-
-    wp_register_script(
-        'metamask-dapp-metamask-sdk',
-        'https://unpkg.com/@metamask/sdk@0.30.1/dist/browser/umd/metamask-sdk.js',
-        array(),
-        '0.30.1',
-        true
-    );
-
-    wp_register_script(
         'metamask-dapp-app',
         $asset_url . 'metamask-dapp.js',
-        array('metamask-dapp-ethers', 'metamask-dapp-metamask-sdk'),
+        array(),
         $app_version,
         true
     );
@@ -77,8 +61,6 @@ function metamask_dapp_enqueue_assets() {
         metamask_dapp_get_config()
     );
 
-    wp_enqueue_script('metamask-dapp-ethers');
-    wp_enqueue_script('metamask-dapp-metamask-sdk');
     wp_enqueue_script('metamask-dapp-app');
     wp_enqueue_style('sqmu-dapp');
 }
