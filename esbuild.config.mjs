@@ -9,5 +9,8 @@ await build({
   target: ['es2020'],
   globalName: 'MetaMaskWP',
   sourcemap: true,
-  minify: false
+  minify: false,
+  define: {
+    'process.env.NODE_ENV': '"production"'
+  }
 });
