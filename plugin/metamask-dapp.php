@@ -59,11 +59,8 @@ function metamask_dapp_get_config() {
 function metamask_dapp_enqueue_assets() {
     metamask_dapp_register_scripts();
 
-    wp_localize_script(
-        'metamask-dapp-app',
-        'metamaskDappConfig',
-        metamask_dapp_get_config()
-    );
+    $inline_config = 'window.metamaskDappConfig = ' . wp_json_encode(metamask_dapp_get_config()) . ';';
+    wp_add_inline_script('metamask-dapp-app', $inline_config, 'before');
 
     wp_enqueue_script('metamask-dapp-app');
     wp_enqueue_style('sqmu-dapp');
