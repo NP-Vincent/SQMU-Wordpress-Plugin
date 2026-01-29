@@ -31,6 +31,9 @@ export function createWalletState(config = {}) {
     }
   };
 
+  const getWindowProvider = () =>
+    typeof window !== 'undefined' ? window.ethereum : null;
+
   const notify = () => {
     listeners.forEach((listener) => listener(state));
   };
@@ -68,9 +71,7 @@ export function createWalletState(config = {}) {
     const accounts = await sdk.connect();
     state.connected = Array.isArray(accounts) && accounts.length > 0;
     state.account = accounts?.[0] ?? null;
-    const provider =
-      sdk.getProvider() ||
-      (typeof window !== 'undefined' ? window.ethereum : null);
+    const provider = getWindowProvider() || sdk.getProvider();
     if (!provider) {
       throw new Error('MetaMask provider not found. Ensure the extension is available.');
     }
@@ -95,7 +96,10 @@ export function createWalletState(config = {}) {
     notify();
   };
 
-  attachProvider(sdk.getProvider());
+  const initialProvider = getWindowProvider();
+  if (initialProvider) {
+    attachProvider(initialProvider);
+  }
 
   return state;
 }
