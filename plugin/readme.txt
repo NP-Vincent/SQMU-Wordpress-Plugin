@@ -13,7 +13,8 @@ Bootstraps the MetaMask dApp assets and provides a shortcode mount point.
 == Installation ==
 1. Upload the plugin folder to /wp-content/plugins/metamask-dapp.
 2. Activate the plugin through the WordPress admin UI.
-3. Add the [metamask_dapp] shortcode to a page.
+3. Add the [metamask_dapp] shortcode to a page to render the full embed.
+4. Optionally use [sqmu_listing] or [sqmu_portfolio] for individual sections.
 
 == Changelog ==
 = 0.1.0 =
