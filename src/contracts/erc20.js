@@ -11,3 +11,8 @@ export function createErc20Contract({ signer, address }) {
   const { Contract } = getEthers();
   return new Contract(address, erc20Abi, signer);
 }
+
+export function createErc20ReadOnly({ provider, address }) {
+  const { Contract } = getEthers();
+  return new Contract(address, erc20Abi, provider);
+}

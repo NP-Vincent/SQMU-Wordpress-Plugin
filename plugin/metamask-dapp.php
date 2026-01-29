@@ -48,7 +48,11 @@ add_action('wp_enqueue_scripts', 'metamask_dapp_register_scripts');
 function metamask_dapp_get_config() {
     return array(
         'chainId' => null,
-        'mountSelector' => '#metamask-dapp'
+        'mountSelector' => '#metamask-dapp',
+        'sqmuAddress' => '0xd0b895e975f24045e43d788d42BD938b78666EC8',
+        'distributorAddress' => '0x19d8D25DD4C85264B2AC502D66aEE113955b8A07',
+        'tradeAddress' => '0x4F1BFDC7EBba77e7ec76C6AEbE81C0e84d28470B',
+        'maxTokenId' => 100
     );
 }
 
