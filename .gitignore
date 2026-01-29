@@ -1,3 +1,5 @@
 node_modules/
 dist/
+plugin/assets/metamask-dapp.js
+plugin/assets/metamask-dapp.js.map
 .wpcom-stage/

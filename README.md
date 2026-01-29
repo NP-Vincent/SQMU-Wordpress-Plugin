@@ -38,10 +38,9 @@ metamask-wp-dapp/
 │
 ├─ plugin/
 │  ├─ metamask-dapp.php    # WordPress plugin bootstrap
-│  ├─ assets/              # Built assets injected by CI
+│  ├─ assets/              # Built assets injected by CI (gitignored)
 │  └─ readme.txt
 │
-├─ dist/                   # Local build output (gitignored)
 ├─ reference-only/         # Reference materials only (not for direct use)
 │
 ├─ .github/workflows/
@@ -96,7 +95,7 @@ window.MetaMaskWP.initMetaMaskDapp(...)
 The build produces:
 
 ```
-dist/metamask-dapp.js
+plugin/assets/metamask-dapp.js
 ```
 
 This is the **only JavaScript file** WordPress will ever load.
@@ -194,7 +193,7 @@ Plugin activation and updates are handled entirely by WordPress.
 
 - Do not introduce Node dependencies into PHP
 - Do not reference WordPress globals in JS
-- Do not commit build output (`dist/`) unless explicitly required
+- Do not commit build output (`plugin/assets/`) unless explicitly required
 - Do not add alternative deployment workflows
 - Do not add Pages, PM2, or server‑side assumptions
 
