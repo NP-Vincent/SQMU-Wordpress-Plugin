@@ -92,3 +92,9 @@ function sqmu_portfolio_shortcode() {
     return sqmu_render_template('portfolio.php');
 }
 add_shortcode('sqmu_portfolio', 'sqmu_portfolio_shortcode');
+
+function metamask_dapp_shortcode() {
+    metamask_dapp_enqueue_assets();
+    return sqmu_render_template('dapp.php');
+}
+add_shortcode('metamask_dapp', 'metamask_dapp_shortcode');

@@ -29,6 +29,7 @@ jobs:
           cp plugin/metamask-dapp.php wpcom-stage/metamask-dapp/metamask-dapp.php
           cp plugin/readme.txt wpcom-stage/metamask-dapp/readme.txt
           cp plugin/assets/metamask-dapp.js wpcom-stage/metamask-dapp/assets/metamask-dapp.js
+          cp plugin/assets/sqmu-dapp.css wpcom-stage/metamask-dapp/assets/sqmu-dapp.css
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
