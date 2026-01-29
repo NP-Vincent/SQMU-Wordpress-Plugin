@@ -28,7 +28,7 @@ jobs:
           mkdir -p wpcom-stage/metamask-dapp/assets
           cp plugin/metamask-dapp.php wpcom-stage/metamask-dapp/metamask-dapp.php
           cp plugin/readme.txt wpcom-stage/metamask-dapp/readme.txt
-          cp dist/metamask-dapp.js wpcom-stage/metamask-dapp/assets/metamask-dapp.js
+          cp plugin/assets/metamask-dapp.js wpcom-stage/metamask-dapp/assets/metamask-dapp.js
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
