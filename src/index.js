@@ -1,6 +1,7 @@
 import { createWalletState } from './wallet/metamask.js';
 import { mountDappUI, mountUI } from './ui/index.js';
 import { initListingWidget } from './widgets/listing/index.js';
+import { initPortfolioWidget } from './widgets/portfolio/index.js';
 
 const parseDatasetConfig = (dataset) => {
   const config = {};
@@ -57,6 +58,10 @@ export function initMetaMaskDapp(config = {}) {
 
     if (widget === 'sqmu-listing') {
       states.push(initListingWidget(mount, mergedConfig));
+    }
+
+    if (widget === 'sqmu-portfolio') {
+      states.push(initPortfolioWidget(mount, mergedConfig));
     }
   });
 
