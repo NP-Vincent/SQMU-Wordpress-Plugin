@@ -92,6 +92,41 @@ const getReadProvider = (state, config) => {
   throw new Error('Connect wallet or supply an RPC URL for read-only calls.');
 };
 
+const resolvePropertyCodeFromPage = () => {
+  if (typeof document === 'undefined' || typeof window === 'undefined') {
+    return '';
+  }
+
+  const targetLabel = 'sqmu property code';
+  const fields = document.querySelectorAll('.es-entity-field');
+  for (const field of fields) {
+    const label = field.querySelector('.es-entity-field__label, label');
+    const labelText = label?.textContent?.trim().toLowerCase() ?? '';
+    if (!labelText.includes(targetLabel)) {
+      continue;
+    }
+    let valueElement = field.querySelector('.es-entity-field__value');
+    if (!valueElement && label) {
+      const siblings = Array.from(label.parentElement?.children ?? []).filter(
+        (element) => element !== label
+      );
+      valueElement = siblings.find(
+        (element) => element.textContent?.trim()
+      );
+    }
+    if (!valueElement) {
+      continue;
+    }
+    const value = valueElement.textContent?.trim() ?? '';
+    if (value) {
+      return value;
+    }
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get('code')?.trim() ?? '';
+};
+
 export function initListingWidget(mount, config = {}) {
   if (!mount) {
     return null;
@@ -105,6 +140,12 @@ export function initListingWidget(mount, config = {}) {
     agentCode: config.agentCode || '',
     email: config.email || ''
   };
+  if (!resolvedConfig.propertyCode) {
+    const derivedPropertyCode = resolvePropertyCodeFromPage();
+    if (derivedPropertyCode) {
+      resolvedConfig.propertyCode = derivedPropertyCode;
+    }
+  }
 
   mount.innerHTML = '';
   mount.classList.add('sqmu-widget');
