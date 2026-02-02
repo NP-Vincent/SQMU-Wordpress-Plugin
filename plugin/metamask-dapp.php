@@ -21,7 +21,8 @@ function metamask_dapp_should_enqueue_widget_assets() {
             return false;
         }
         return has_shortcode($post->post_content, 'metamask_dapp')
-            || has_shortcode($post->post_content, 'sqmu_listing');
+            || has_shortcode($post->post_content, 'sqmu_listing')
+            || has_shortcode($post->post_content, 'sqmu_portfolio');
     }
 
     return false;
@@ -83,13 +84,24 @@ function metamask_dapp_register_mount($widget, $atts) {
             'chainId' => $atts['chain_id'] ?? null,
             'contractAddress' => $atts['contract_address'] ?? null,
             'rpcUrl' => $atts['rpc_url'] ?? null,
+            'blockExplorerUrl' => $atts['block_explorer_url'] ?? null,
             'infuraApiKey' => $atts['infura_api_key'] ?? null,
             'dappName' => $atts['dapp_name'] ?? null,
             'dappUrl' => $atts['dapp_url'] ?? null,
+            'chainName' => $atts['chain_name'] ?? null,
+            'nativeCurrency' => $atts['native_currency'] ?? null,
             'propertyCode' => $atts['property_code'] ?? null,
             'tokenAddress' => $atts['token_address'] ?? null,
             'agentCode' => $atts['agent_code'] ?? null,
-            'email' => $atts['email'] ?? null
+            'email' => $atts['email'] ?? null,
+            'sqmuAddress' => $atts['sqmu'] ?? null,
+            'distributorAddress' => $atts['distributor'] ?? null,
+            'tradeAddress' => $atts['trade'] ?? null,
+            'maxTokenId' => $atts['max_token_id'] ?? null,
+            'sqmuDecimals' => $atts['sqmu_decimals'] ?? null,
+            'enableSell' => $atts['enable_sell'] ?? null,
+            'enableBuy' => $atts['enable_buy'] ?? null,
+            'paymentTokens' => $atts['payment_tokens'] ?? null
         ),
         static function ($value) {
             return $value !== null && $value !== '';
@@ -106,6 +118,9 @@ function metamask_dapp_register_mount($widget, $atts) {
     );
 
     foreach ($config as $key => $value) {
+        if (!is_string($value) && !is_int($value) && !is_float($value)) {
+            continue;
+        }
         $attr_key = 'data-mmwp-' . strtolower(preg_replace('/([a-z])([A-Z])/', '$1-$2', $key));
         $attributes[$attr_key] = esc_attr($value);
     }
@@ -158,3 +173,56 @@ function sqmu_listing_shortcode($atts) {
     return metamask_dapp_register_mount('sqmu-listing', $atts);
 }
 add_shortcode('sqmu_listing', 'sqmu_listing_shortcode');
+
+function sqmu_portfolio_shortcode($atts) {
+    $atts = shortcode_atts(
+        array(
+            'chain_id' => '',
+            'rpc_url' => '',
+            'block_explorer_url' => '',
+            'chain_name' => '',
+            'native_currency' => '',
+            'sqmu' => '',
+            'distributor' => '',
+            'trade' => '',
+            'max_token_id' => '',
+            'sqmu_decimals' => '',
+            'enable_sell' => '',
+            'enable_buy' => '',
+            'payment_token_allowlist' => ''
+        ),
+        $atts,
+        'sqmu_portfolio'
+    );
+
+    $normalize_bool = static function ($value) {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    };
+
+    $normalize_number = static function ($value) {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+        if (!is_numeric($value)) {
+            return null;
+        }
+        return (int) $value;
+    };
+
+    $atts['enable_sell'] = $normalize_bool($atts['enable_sell']);
+    $atts['enable_buy'] = $normalize_bool($atts['enable_buy']);
+    $atts['max_token_id'] = $normalize_number($atts['max_token_id']);
+    $atts['sqmu_decimals'] = $normalize_number($atts['sqmu_decimals']);
+
+    if (!empty($atts['payment_token_allowlist'])) {
+        $tokens = preg_split('/[\s,]+/', $atts['payment_token_allowlist']);
+        $tokens = array_filter(array_map('trim', $tokens));
+        $atts['payment_tokens'] = $tokens ?: null;
+    }
+
+    return metamask_dapp_register_mount('sqmu-portfolio', $atts);
+}
+add_shortcode('sqmu_portfolio', 'sqmu_portfolio_shortcode');
