@@ -12,6 +12,10 @@ import {
   renderInput,
   renderSelect
 } from '../../ui/index.js';
+import {
+  getPaymentToken,
+  getPaymentTokensFromList
+} from '../../utils/paymentTokens.js';
 import { createWalletState } from '../../wallet/metamask.js';
 
 const USD_DECIMALS = 18n;
@@ -244,18 +248,19 @@ export function initListingWidget(mount, config = {}) {
   };
 
   const updateTokensList = (tokens) => {
+    const resolvedTokens = getPaymentTokensFromList(tokens);
     paymentTokenSelect.innerHTML = '';
-    if (!tokens.length) {
+    if (!resolvedTokens.length) {
       const option = document.createElement('option');
       option.value = '';
       option.textContent = 'No tokens available';
       paymentTokenSelect.appendChild(option);
       return;
     }
-    tokens.forEach((token) => {
+    resolvedTokens.forEach((token) => {
       const option = document.createElement('option');
-      option.value = token;
-      option.textContent = token;
+      option.value = token.address;
+      option.textContent = token.symbol;
       paymentTokenSelect.appendChild(option);
     });
     if (resolvedConfig.tokenAddress) {
@@ -328,17 +333,20 @@ export function initListingWidget(mount, config = {}) {
       if (!propertyCode || sqmuAmount === null || !tokenAddress) {
         throw new Error('Fill property, amount, and token.');
       }
+      const token = getPaymentToken(tokenAddress);
+      if (!token) {
+        throw new Error('Selected payment token is not supported.');
+      }
       const contract = contractForWrite();
       const property = await contract.getPropertyInfo(propertyCode);
       const erc20 = createErc20Contract({
         signer: state.signer,
-        address: tokenAddress
+        address: token.address
       });
-      const decimals = await erc20.decimals();
       const totalPrice = calculateTotalPrice(
         property.priceUSD,
         sqmuAmount,
-        decimals
+        token.decimals
       );
       const allowance = await erc20.allowance(
         state.account,
@@ -369,7 +377,7 @@ export function initListingWidget(mount, config = {}) {
           sqmuAmount: sqmuAmountInput.value.trim(),
           paymentToken: tokenAddress,
           totalPrice: totalPrice.toString(),
-          tokenDecimals: decimals.toString(),
+          tokenDecimals: token.decimals.toString(),
           agentCode: agentCodeInput.value.trim(),
           buyer: state.account ?? '',
           transactionHash: tx.hash
