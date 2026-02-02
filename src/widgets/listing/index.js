@@ -1,10 +1,11 @@
-import { formatUnits } from 'ethers';
+import { JsonRpcProvider } from 'ethers';
 import {
   createDistributorContract,
   createDistributorReadOnly,
   defaultDistributorAddress
-} from '../contracts/atomicDistributor.js';
-import { createErc20Contract } from '../contracts/erc20.js';
+} from '../../contracts/atomicDistributor.js';
+import { createErc20Contract } from '../../contracts/erc20.js';
+import { createWalletState } from '../../wallet/metamask.js';
 
 const USD_DECIMALS = 18n;
 const SQMU_DECIMALS = 2n;
@@ -50,9 +51,6 @@ const renderActionError = (status, actionLabel, error) => {
   renderStatus(status, `${actionLabel} failed: ${formatErrorMessage(error)}`);
 };
 
-const shorten = (value) =>
-  value ? `${value.slice(0, 6)}...${value.slice(-4)}` : 'Not connected';
-
 const parseSqmuAmount = (value) => {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -69,18 +67,56 @@ const calculateTotalPrice = (priceUSD, sqmuAmount, tokenDecimals) => {
   return (priceUSD * sqmuAmount * decimals) / 10n ** USD_DECIMALS;
 };
 
-export function mountDappUI(mount, state, config = {}) {
+const normalizeChainId = (chainId) => {
+  if (typeof chainId === 'string' && chainId.trim() !== '') {
+    return chainId.startsWith('0x')
+      ? Number.parseInt(chainId, 16)
+      : Number.parseInt(chainId, 10);
+  }
+  if (typeof chainId === 'number') {
+    return chainId;
+  }
+  return null;
+};
+
+const enforceChain = (state, config) => {
+  const expected = normalizeChainId(config.chainId);
+  if (expected && state.chainId && expected !== state.chainId) {
+    throw new Error(`Switch to chain ${expected} before proceeding.`);
+  }
+};
+
+const getReadProvider = (state, config) => {
+  if (config.rpcUrl) {
+    return new JsonRpcProvider(config.rpcUrl);
+  }
+  if (state.ethersProvider) {
+    return state.ethersProvider;
+  }
+  throw new Error('Connect wallet or supply an RPC URL for read-only calls.');
+};
+
+export function initListingWidget(mount, config = {}) {
   if (!mount) {
     return null;
   }
 
+  const state = createWalletState(config);
+  const resolvedConfig = {
+    contractAddress: config.contractAddress || defaultDistributorAddress || '',
+    propertyCode: config.propertyCode || '',
+    tokenAddress: config.tokenAddress || '',
+    agentCode: config.agentCode || '',
+    email: config.email || ''
+  };
+
   mount.innerHTML = '';
   mount.style.display = 'grid';
-  mount.style.gap = '20px';
+  mount.style.gap = '16px';
   mount.style.maxWidth = '560px';
 
-  const heading = document.createElement('h2');
-  heading.textContent = 'SQMU Distributor';
+  const heading = document.createElement('h3');
+  heading.textContent = 'SQMU Listing';
 
   const status = document.createElement('p');
   const accountLine = document.createElement('p');
@@ -97,21 +133,21 @@ export function mountDappUI(mount, state, config = {}) {
   const contractAddressInput = document.createElement('input');
   contractAddressInput.type = 'text';
   contractAddressInput.placeholder = '0x...';
-  contractAddressInput.value =
-    config.contractAddress || defaultDistributorAddress || '';
+  contractAddressInput.value = resolvedConfig.contractAddress;
 
   const propertyCodeInput = document.createElement('input');
   propertyCodeInput.type = 'text';
   propertyCodeInput.placeholder = 'Property code';
+  propertyCodeInput.value = resolvedConfig.propertyCode;
 
-  const fetchPropertyButton = document.createElement('button');
-  fetchPropertyButton.type = 'button';
-  fetchPropertyButton.textContent = 'Fetch property details';
+  const loadPropertyButton = document.createElement('button');
+  loadPropertyButton.type = 'button';
+  loadPropertyButton.textContent = 'Load property';
 
-  const propertyInfo = document.createElement('pre');
-  propertyInfo.textContent = 'No property loaded.';
-  propertyInfo.style.whiteSpace = 'pre-wrap';
-  propertyInfo.style.margin = '0';
+  const availableField = document.createElement('input');
+  availableField.type = 'text';
+  availableField.readOnly = true;
+  availableField.value = 'Not loaded';
 
   const paymentTokenSelect = document.createElement('select');
   const refreshTokensButton = document.createElement('button');
@@ -126,14 +162,12 @@ export function mountDappUI(mount, state, config = {}) {
   const agentCodeInput = document.createElement('input');
   agentCodeInput.type = 'text';
   agentCodeInput.placeholder = 'Optional agent code';
+  agentCodeInput.value = resolvedConfig.agentCode;
 
-  const estimateButton = document.createElement('button');
-  estimateButton.type = 'button';
-  estimateButton.textContent = 'Estimate total price';
-
-  const approveButton = document.createElement('button');
-  approveButton.type = 'button';
-  approveButton.textContent = 'Approve payment';
+  const emailInput = document.createElement('input');
+  emailInput.type = 'email';
+  emailInput.placeholder = 'Optional email';
+  emailInput.value = resolvedConfig.email;
 
   const buyButton = document.createElement('button');
   buyButton.type = 'button';
@@ -143,21 +177,15 @@ export function mountDappUI(mount, state, config = {}) {
 
   const getContractAddress = () =>
     contractAddressInput.value.trim() ||
-    config.contractAddress ||
+    resolvedConfig.contractAddress ||
     defaultDistributorAddress ||
     '';
-
-  const ensureConnected = () => {
-    if (!state.signer) {
-      throw new Error('Connect MetaMask first.');
-    }
-  };
 
   const updateConnectionStatus = () => {
     renderStatus(
       status,
       state.connected
-        ? `Connected to ${shorten(state.account)}`
+        ? `Connected to ${state.account ?? ''}`
         : 'Wallet not connected.'
     );
     accountLine.textContent = `Account: ${state.account ?? 'N/A'}`;
@@ -165,15 +193,18 @@ export function mountDappUI(mount, state, config = {}) {
   };
 
   const contractForRead = () => {
-    ensureConnected();
+    const provider = getReadProvider(state, config);
     return createDistributorReadOnly({
-      provider: state.ethersProvider,
+      provider,
       address: getContractAddress()
     });
   };
 
   const contractForWrite = () => {
-    ensureConnected();
+    if (!state.signer) {
+      throw new Error('Connect MetaMask first.');
+    }
+    enforceChain(state, config);
     return createDistributorContract({
       signer: state.signer,
       address: getContractAddress()
@@ -195,6 +226,9 @@ export function mountDappUI(mount, state, config = {}) {
       option.textContent = token;
       paymentTokenSelect.appendChild(option);
     });
+    if (resolvedConfig.tokenAddress) {
+      paymentTokenSelect.value = resolvedConfig.tokenAddress;
+    }
   };
 
   connectButton.addEventListener('click', async () => {
@@ -217,8 +251,8 @@ export function mountDappUI(mount, state, config = {}) {
     }
   });
 
-  fetchPropertyButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Fetching property info...');
+  loadPropertyButton.addEventListener('click', async () => {
+    renderStatus(actionStatus, 'Loading property...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
       if (!propertyCode) {
@@ -230,18 +264,14 @@ export function mountDappUI(mount, state, config = {}) {
         contract.getAvailable(propertyCode),
         contract.getPropertyStatus(propertyCode)
       ]);
-      propertyInfo.textContent = [
-        `Name: ${property.name}`,
-        `Token Address: ${property.tokenAddress}`,
-        `Token ID: ${property.tokenId}`,
-        `Treasury: ${property.treasury}`,
-        `Price (USD, 18 decimals): ${property.priceUSD}`,
-        `Active: ${statusValue ? 'Yes' : 'No'}`,
-        `Available SQMU: ${available}`
-      ].join('\n');
-      renderStatus(actionStatus, 'Property loaded.');
+      availableField.value = `${available} (Active: ${statusValue ? 'Yes' : 'No'})`;
+      resolvedConfig.propertyCode = propertyCode;
+      renderStatus(
+        actionStatus,
+        `Loaded ${property.name || propertyCode}.`
+      );
     } catch (error) {
-      renderActionError(actionStatus, 'Property lookup', error);
+      renderActionError(actionStatus, 'Property load', error);
     }
   });
 
@@ -257,45 +287,8 @@ export function mountDappUI(mount, state, config = {}) {
     }
   });
 
-  estimateButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Estimating price...');
-    try {
-      const propertyCode = propertyCodeInput.value.trim();
-      const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
-      if (!propertyCode || sqmuAmount === null) {
-        throw new Error('Enter property code and SQMU amount.');
-      }
-      const tokenAddress = paymentTokenSelect.value.trim();
-      if (!tokenAddress) {
-        throw new Error('Select a payment token.');
-      }
-      const contract = contractForRead();
-      const property = await contract.getPropertyInfo(propertyCode);
-      const erc20 = createErc20Contract({
-        signer: state.signer,
-        address: tokenAddress
-      });
-      const [decimals, symbol] = await Promise.all([
-        erc20.decimals(),
-        erc20.symbol()
-      ]);
-      const totalPrice = calculateTotalPrice(
-        property.priceUSD,
-        sqmuAmount,
-        decimals
-      );
-      const formatted = formatUnits(totalPrice, decimals);
-      renderStatus(
-        actionStatus,
-        `Estimated total: ${formatted} ${symbol}`
-      );
-    } catch (error) {
-      renderActionError(actionStatus, 'Estimate', error);
-    }
-  });
-
-  approveButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Approving payment...');
+  buyButton.addEventListener('click', async () => {
+    renderStatus(actionStatus, 'Submitting purchase...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
       const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
@@ -303,7 +296,7 @@ export function mountDappUI(mount, state, config = {}) {
       if (!propertyCode || sqmuAmount === null || !tokenAddress) {
         throw new Error('Fill property, amount, and token.');
       }
-      const contract = contractForRead();
+      const contract = contractForWrite();
       const property = await contract.getPropertyInfo(propertyCode);
       const erc20 = createErc20Contract({
         signer: state.signer,
@@ -315,31 +308,23 @@ export function mountDappUI(mount, state, config = {}) {
         sqmuAmount,
         decimals
       );
-      const tx = await erc20.approve(getContractAddress(), totalPrice);
-      renderStatus(actionStatus, `Approval submitted: ${tx.hash}`);
-      await tx.wait();
-      renderStatus(actionStatus, 'Approval confirmed.');
-    } catch (error) {
-      renderActionError(actionStatus, 'Approval', error);
-    }
-  });
-
-  buyButton.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Submitting purchase...');
-    try {
-      const propertyCode = propertyCodeInput.value.trim();
-      const sqmuAmount = parseSqmuAmount(sqmuAmountInput.value);
-      const tokenAddress = paymentTokenSelect.value.trim();
-      if (!propertyCode || sqmuAmount === null || !tokenAddress) {
-        throw new Error('Fill property, amount, and token.');
+      const allowance = await erc20.allowance(
+        state.account,
+        getContractAddress()
+      );
+      if (allowance < totalPrice) {
+        const approveTx = await erc20.approve(
+          getContractAddress(),
+          totalPrice
+        );
+        renderStatus(actionStatus, `Approval submitted: ${approveTx.hash}`);
+        await approveTx.wait();
       }
-      const agentCode = agentCodeInput.value.trim();
-      const contract = contractForWrite();
       const tx = await contract.buySQMU(
         propertyCode,
         sqmuAmount,
         tokenAddress,
-        agentCode
+        agentCodeInput.value.trim()
       );
       renderStatus(actionStatus, `Transaction submitted: ${tx.hash}`);
       await tx.wait();
@@ -360,22 +345,15 @@ export function mountDappUI(mount, state, config = {}) {
   mount.appendChild(disconnectButton);
   mount.appendChild(createField('Distributor contract address', contractAddressInput));
   mount.appendChild(createField('Property code', propertyCodeInput));
-  mount.appendChild(fetchPropertyButton);
-  mount.appendChild(propertyInfo);
+  mount.appendChild(loadPropertyButton);
+  mount.appendChild(createField('Available SQMU', availableField));
   mount.appendChild(refreshTokensButton);
   mount.appendChild(createField('Payment token', paymentTokenSelect));
   mount.appendChild(createField('SQMU amount', sqmuAmountInput));
   mount.appendChild(createField('Agent code', agentCodeInput));
-  mount.appendChild(estimateButton);
-  mount.appendChild(approveButton);
+  mount.appendChild(createField('Email', emailInput));
   mount.appendChild(buyButton);
   mount.appendChild(actionStatus);
 
   return state;
-}
-
-export function mountUI(state, config = {}) {
-  const mountSelector = config.mountSelector || '#metamask-dapp';
-  const mount = config.mountEl || document.querySelector(mountSelector);
-  return mountDappUI(mount, state, config);
 }
