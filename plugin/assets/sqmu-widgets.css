@@ -27,3 +27,67 @@
   margin: 0;
   white-space: pre-wrap;
 }
+
+/* Tables */
+.sqmu-widget .sqmu-table {
+  overflow-x: auto;
+}
+
+.sqmu-widget table {
+  width: 100%;
+  min-width: 32rem;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.sqmu-widget th,
+.sqmu-widget td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  vertical-align: top;
+}
+
+.sqmu-widget thead th {
+  font-weight: 600;
+  border-bottom-color: rgba(0, 0, 0, 0.12);
+}
+
+.sqmu-widget tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.sqmu-widget tfoot th,
+.sqmu-widget tfoot td {
+  font-weight: 600;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Responsive table layout */
+@media (max-width: 640px) {
+  .sqmu-widget table {
+    min-width: 24rem;
+  }
+}
+
+/* Status areas */
+.sqmu-widget .sqmu-portfolio-status,
+.sqmu-widget .sqmu-trade-status {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.sqmu-widget .sqmu-portfolio-status {
+  border-left: 4px solid rgba(0, 0, 0, 0.2);
+}
+
+.sqmu-widget .sqmu-trade-status {
+  border-left: 4px solid rgba(0, 0, 0, 0.35);
+}
+
+/* Buttons */
+.sqmu-widget .wp-block-button__link {
+  font: inherit;
+  padding: 0.5rem 1rem;
+}
