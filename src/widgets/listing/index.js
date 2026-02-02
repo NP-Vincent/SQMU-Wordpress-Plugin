@@ -5,21 +5,16 @@ import {
   defaultDistributorAddress
 } from '../../contracts/atomicDistributor.js';
 import { createErc20Contract } from '../../contracts/erc20.js';
+import {
+  renderButton,
+  renderField,
+  renderInput,
+  renderSelect
+} from '../../ui/index.js';
 import { createWalletState } from '../../wallet/metamask.js';
 
 const USD_DECIMALS = 18n;
 const SQMU_DECIMALS = 2n;
-
-const createField = (labelText, input) => {
-  const wrapper = document.createElement('label');
-  wrapper.style.display = 'flex';
-  wrapper.style.flexDirection = 'column';
-  wrapper.style.gap = '4px';
-  wrapper.style.marginBottom = '12px';
-  wrapper.textContent = labelText;
-  wrapper.appendChild(input);
-  return wrapper;
-};
 
 const renderStatus = (status, detail) => {
   status.textContent = detail;
@@ -111,9 +106,10 @@ export function initListingWidget(mount, config = {}) {
   };
 
   mount.innerHTML = '';
-  mount.style.display = 'grid';
-  mount.style.gap = '16px';
-  mount.style.maxWidth = '560px';
+  mount.classList.add('sqmu-widget');
+
+  const grid = document.createElement('div');
+  grid.className = 'sqmu-grid';
 
   const heading = document.createElement('h3');
   heading.textContent = 'SQMU Listing';
@@ -122,56 +118,50 @@ export function initListingWidget(mount, config = {}) {
   const accountLine = document.createElement('p');
   const chainLine = document.createElement('p');
 
-  const connectButton = document.createElement('button');
-  connectButton.type = 'button';
-  connectButton.textContent = 'Connect MetaMask';
+  const connectButton = renderButton('Connect MetaMask', 'connect');
+  const disconnectButton = renderButton('Disconnect wallet', 'disconnect');
 
-  const disconnectButton = document.createElement('button');
-  disconnectButton.type = 'button';
-  disconnectButton.textContent = 'Disconnect wallet';
+  const contractAddressInput = renderInput({
+    placeholder: '0x...',
+    value: resolvedConfig.contractAddress
+  });
 
-  const contractAddressInput = document.createElement('input');
-  contractAddressInput.type = 'text';
-  contractAddressInput.placeholder = '0x...';
-  contractAddressInput.value = resolvedConfig.contractAddress;
+  const propertyCodeInput = renderInput({
+    placeholder: 'Property code',
+    value: resolvedConfig.propertyCode
+  });
 
-  const propertyCodeInput = document.createElement('input');
-  propertyCodeInput.type = 'text';
-  propertyCodeInput.placeholder = 'Property code';
-  propertyCodeInput.value = resolvedConfig.propertyCode;
+  const loadPropertyButton = renderButton('Load property', 'load-property');
 
-  const loadPropertyButton = document.createElement('button');
-  loadPropertyButton.type = 'button';
-  loadPropertyButton.textContent = 'Load property';
+  const availableField = renderInput({
+    readOnly: true,
+    value: 'Not loaded'
+  });
 
-  const availableField = document.createElement('input');
-  availableField.type = 'text';
-  availableField.readOnly = true;
-  availableField.value = 'Not loaded';
+  const paymentTokenSelect = renderSelect();
+  const refreshTokensButton = renderButton(
+    'Load payment tokens',
+    'load-tokens'
+  );
 
-  const paymentTokenSelect = document.createElement('select');
-  const refreshTokensButton = document.createElement('button');
-  refreshTokensButton.type = 'button';
-  refreshTokensButton.textContent = 'Load payment tokens';
+  const sqmuAmountInput = renderInput({
+    type: 'number',
+    min: '0.01',
+    step: '0.01'
+  });
 
-  const sqmuAmountInput = document.createElement('input');
-  sqmuAmountInput.type = 'number';
-  sqmuAmountInput.min = '0.01';
-  sqmuAmountInput.step = '0.01';
+  const agentCodeInput = renderInput({
+    placeholder: 'Optional agent code',
+    value: resolvedConfig.agentCode
+  });
 
-  const agentCodeInput = document.createElement('input');
-  agentCodeInput.type = 'text';
-  agentCodeInput.placeholder = 'Optional agent code';
-  agentCodeInput.value = resolvedConfig.agentCode;
+  const emailInput = renderInput({
+    type: 'email',
+    placeholder: 'Optional email',
+    value: resolvedConfig.email
+  });
 
-  const emailInput = document.createElement('input');
-  emailInput.type = 'email';
-  emailInput.placeholder = 'Optional email';
-  emailInput.value = resolvedConfig.email;
-
-  const buyButton = document.createElement('button');
-  buyButton.type = 'button';
-  buyButton.textContent = 'Buy SQMU';
+  const buyButton = renderButton('Buy SQMU', 'buy');
 
   const actionStatus = document.createElement('p');
 
@@ -231,7 +221,7 @@ export function initListingWidget(mount, config = {}) {
     }
   };
 
-  connectButton.addEventListener('click', async () => {
+  connectButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Connecting to MetaMask...');
     try {
       await state.connect();
@@ -241,7 +231,7 @@ export function initListingWidget(mount, config = {}) {
     }
   });
 
-  disconnectButton.addEventListener('click', async () => {
+  disconnectButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Disconnecting wallet...');
     try {
       await state.disconnect?.();
@@ -251,7 +241,7 @@ export function initListingWidget(mount, config = {}) {
     }
   });
 
-  loadPropertyButton.addEventListener('click', async () => {
+  loadPropertyButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Loading property...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
@@ -275,7 +265,7 @@ export function initListingWidget(mount, config = {}) {
     }
   });
 
-  refreshTokensButton.addEventListener('click', async () => {
+  refreshTokensButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Loading payment tokens...');
     try {
       const contract = contractForRead();
@@ -287,7 +277,7 @@ export function initListingWidget(mount, config = {}) {
     }
   });
 
-  buyButton.addEventListener('click', async () => {
+  buyButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Submitting purchase...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
@@ -337,23 +327,24 @@ export function initListingWidget(mount, config = {}) {
   updateConnectionStatus();
   state.subscribe(updateConnectionStatus);
 
-  mount.appendChild(heading);
-  mount.appendChild(status);
-  mount.appendChild(accountLine);
-  mount.appendChild(chainLine);
-  mount.appendChild(connectButton);
-  mount.appendChild(disconnectButton);
-  mount.appendChild(createField('Distributor contract address', contractAddressInput));
-  mount.appendChild(createField('Property code', propertyCodeInput));
-  mount.appendChild(loadPropertyButton);
-  mount.appendChild(createField('Available SQMU', availableField));
-  mount.appendChild(refreshTokensButton);
-  mount.appendChild(createField('Payment token', paymentTokenSelect));
-  mount.appendChild(createField('SQMU amount', sqmuAmountInput));
-  mount.appendChild(createField('Agent code', agentCodeInput));
-  mount.appendChild(createField('Email', emailInput));
-  mount.appendChild(buyButton);
-  mount.appendChild(actionStatus);
+  grid.appendChild(heading);
+  grid.appendChild(status);
+  grid.appendChild(accountLine);
+  grid.appendChild(chainLine);
+  grid.appendChild(connectButton.wrapper);
+  grid.appendChild(disconnectButton.wrapper);
+  grid.appendChild(renderField('Distributor contract address', contractAddressInput));
+  grid.appendChild(renderField('Property code', propertyCodeInput));
+  grid.appendChild(loadPropertyButton.wrapper);
+  grid.appendChild(renderField('Available SQMU', availableField));
+  grid.appendChild(refreshTokensButton.wrapper);
+  grid.appendChild(renderField('Payment token', paymentTokenSelect));
+  grid.appendChild(renderField('SQMU amount', sqmuAmountInput));
+  grid.appendChild(renderField('Agent code', agentCodeInput));
+  grid.appendChild(renderField('Email', emailInput));
+  grid.appendChild(buyButton.wrapper);
+  grid.appendChild(actionStatus);
+  mount.appendChild(grid);
 
   return state;
 }

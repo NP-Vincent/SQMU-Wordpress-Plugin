@@ -9,6 +9,7 @@ This repository defines a clean baseline for a MetaMask WordPress dApp plugin. F
 - Do not commit build output in `dist/`.
 - Use deterministic builds and a single public JS initializer.
 - Prefer small, focused files with clear responsibilities.
+- Theme reference files live in `references/wordpress/theme/masu-wpcom` for Masu-specific UI alignment.
 
 ## Pull Request Notes
 - Summarize changes and tests in the PR body.

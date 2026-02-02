@@ -23,6 +23,10 @@ This repo intentionally avoids retrofitting prior experiments. It defines a **cl
    - PHP: WordPress glue, configuration, rendering
 5. **WordPress only receives compiled assets**
 
+## Theme Reference
+
+Theme styling references live in `references/wordpress/theme/masu-wpcom` and should be used to keep plugin UI aligned with Masu typography and component primitives.
+
 ---
 
 ## Repository Structure
@@ -224,4 +228,3 @@ All without changing:
 This repository is the **reset point**.
 
 Anything not aligned with this document is considered legacy or experimental and should not be merged without explicit justification.
-

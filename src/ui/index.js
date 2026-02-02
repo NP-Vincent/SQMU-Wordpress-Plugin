@@ -9,12 +9,56 @@ import { createErc20Contract } from '../contracts/erc20.js';
 const USD_DECIMALS = 18n;
 const SQMU_DECIMALS = 2n;
 
-const createField = (labelText, input) => {
+export const renderButton = (label, action) => {
+  const actions = document.createElement('div');
+  actions.className = 'wp-block-buttons sqmu-actions';
+
+  const buttonWrapper = document.createElement('div');
+  buttonWrapper.className = 'wp-block-button';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'wp-block-button__link';
+  button.dataset.action = action;
+  button.textContent = label;
+
+  buttonWrapper.appendChild(button);
+  actions.appendChild(buttonWrapper);
+
+  return { wrapper: actions, button };
+};
+
+export const renderInput = ({
+  type = 'text',
+  name,
+  placeholder,
+  value,
+  min,
+  step,
+  readOnly = false
+} = {}) => {
+  const input = document.createElement('input');
+  input.className = 'wp-block-input';
+  input.type = type;
+  if (name) input.name = name;
+  if (placeholder) input.placeholder = placeholder;
+  if (value !== undefined) input.value = value;
+  if (min !== undefined) input.min = min;
+  if (step !== undefined) input.step = step;
+  input.readOnly = readOnly;
+  return input;
+};
+
+export const renderSelect = ({ name } = {}) => {
+  const select = document.createElement('select');
+  select.className = 'wp-block-select';
+  if (name) select.name = name;
+  return select;
+};
+
+export const renderField = (labelText, input) => {
   const wrapper = document.createElement('label');
-  wrapper.style.display = 'flex';
-  wrapper.style.flexDirection = 'column';
-  wrapper.style.gap = '4px';
-  wrapper.style.marginBottom = '12px';
+  wrapper.className = 'sqmu-row';
   wrapper.textContent = labelText;
   wrapper.appendChild(input);
   return wrapper;
@@ -75,9 +119,10 @@ export function mountDappUI(mount, state, config = {}) {
   }
 
   mount.innerHTML = '';
-  mount.style.display = 'grid';
-  mount.style.gap = '20px';
-  mount.style.maxWidth = '560px';
+  mount.classList.add('sqmu-widget');
+
+  const grid = document.createElement('div');
+  grid.className = 'sqmu-grid';
 
   const heading = document.createElement('h2');
   heading.textContent = 'SQMU Distributor';
@@ -86,58 +131,51 @@ export function mountDappUI(mount, state, config = {}) {
   const accountLine = document.createElement('p');
   const chainLine = document.createElement('p');
 
-  const connectButton = document.createElement('button');
-  connectButton.type = 'button';
-  connectButton.textContent = 'Connect MetaMask';
+  const connectButton = renderButton('Connect MetaMask', 'connect');
+  const disconnectButton = renderButton('Disconnect wallet', 'disconnect');
 
-  const disconnectButton = document.createElement('button');
-  disconnectButton.type = 'button';
-  disconnectButton.textContent = 'Disconnect wallet';
+  const contractAddressInput = renderInput({
+    placeholder: '0x...',
+    value: config.contractAddress || defaultDistributorAddress || ''
+  });
 
-  const contractAddressInput = document.createElement('input');
-  contractAddressInput.type = 'text';
-  contractAddressInput.placeholder = '0x...';
-  contractAddressInput.value =
-    config.contractAddress || defaultDistributorAddress || '';
+  const propertyCodeInput = renderInput({
+    placeholder: 'Property code'
+  });
 
-  const propertyCodeInput = document.createElement('input');
-  propertyCodeInput.type = 'text';
-  propertyCodeInput.placeholder = 'Property code';
-
-  const fetchPropertyButton = document.createElement('button');
-  fetchPropertyButton.type = 'button';
-  fetchPropertyButton.textContent = 'Fetch property details';
+  const fetchPropertyButton = renderButton(
+    'Fetch property details',
+    'fetch-property'
+  );
 
   const propertyInfo = document.createElement('pre');
   propertyInfo.textContent = 'No property loaded.';
-  propertyInfo.style.whiteSpace = 'pre-wrap';
-  propertyInfo.style.margin = '0';
+  propertyInfo.className = 'sqmu-pre';
 
-  const paymentTokenSelect = document.createElement('select');
-  const refreshTokensButton = document.createElement('button');
-  refreshTokensButton.type = 'button';
-  refreshTokensButton.textContent = 'Load payment tokens';
+  const paymentTokenSelect = renderSelect();
+  const refreshTokensButton = renderButton(
+    'Load payment tokens',
+    'load-tokens'
+  );
 
-  const sqmuAmountInput = document.createElement('input');
-  sqmuAmountInput.type = 'number';
-  sqmuAmountInput.min = '0.01';
-  sqmuAmountInput.step = '0.01';
+  const sqmuAmountInput = renderInput({
+    type: 'number',
+    min: '0.01',
+    step: '0.01'
+  });
 
-  const agentCodeInput = document.createElement('input');
-  agentCodeInput.type = 'text';
-  agentCodeInput.placeholder = 'Optional agent code';
+  const agentCodeInput = renderInput({
+    placeholder: 'Optional agent code'
+  });
 
-  const estimateButton = document.createElement('button');
-  estimateButton.type = 'button';
-  estimateButton.textContent = 'Estimate total price';
+  const estimateButton = renderButton(
+    'Estimate total price',
+    'estimate'
+  );
 
-  const approveButton = document.createElement('button');
-  approveButton.type = 'button';
-  approveButton.textContent = 'Approve payment';
+  const approveButton = renderButton('Approve payment', 'approve');
 
-  const buyButton = document.createElement('button');
-  buyButton.type = 'button';
-  buyButton.textContent = 'Buy SQMU';
+  const buyButton = renderButton('Buy SQMU', 'buy');
 
   const actionStatus = document.createElement('p');
 
@@ -197,7 +235,7 @@ export function mountDappUI(mount, state, config = {}) {
     });
   };
 
-  connectButton.addEventListener('click', async () => {
+  connectButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Connecting to MetaMask...');
     try {
       await state.connect();
@@ -207,7 +245,7 @@ export function mountDappUI(mount, state, config = {}) {
     }
   });
 
-  disconnectButton.addEventListener('click', async () => {
+  disconnectButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Disconnecting wallet...');
     try {
       await state.disconnect?.();
@@ -217,7 +255,7 @@ export function mountDappUI(mount, state, config = {}) {
     }
   });
 
-  fetchPropertyButton.addEventListener('click', async () => {
+  fetchPropertyButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Fetching property info...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
@@ -245,7 +283,7 @@ export function mountDappUI(mount, state, config = {}) {
     }
   });
 
-  refreshTokensButton.addEventListener('click', async () => {
+  refreshTokensButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Loading payment tokens...');
     try {
       const contract = contractForRead();
@@ -257,7 +295,7 @@ export function mountDappUI(mount, state, config = {}) {
     }
   });
 
-  estimateButton.addEventListener('click', async () => {
+  estimateButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Estimating price...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
@@ -294,7 +332,7 @@ export function mountDappUI(mount, state, config = {}) {
     }
   });
 
-  approveButton.addEventListener('click', async () => {
+  approveButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Approving payment...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
@@ -324,7 +362,7 @@ export function mountDappUI(mount, state, config = {}) {
     }
   });
 
-  buyButton.addEventListener('click', async () => {
+  buyButton.button.addEventListener('click', async () => {
     renderStatus(actionStatus, 'Submitting purchase...');
     try {
       const propertyCode = propertyCodeInput.value.trim();
@@ -352,24 +390,25 @@ export function mountDappUI(mount, state, config = {}) {
   updateConnectionStatus();
   state.subscribe(updateConnectionStatus);
 
-  mount.appendChild(heading);
-  mount.appendChild(status);
-  mount.appendChild(accountLine);
-  mount.appendChild(chainLine);
-  mount.appendChild(connectButton);
-  mount.appendChild(disconnectButton);
-  mount.appendChild(createField('Distributor contract address', contractAddressInput));
-  mount.appendChild(createField('Property code', propertyCodeInput));
-  mount.appendChild(fetchPropertyButton);
-  mount.appendChild(propertyInfo);
-  mount.appendChild(refreshTokensButton);
-  mount.appendChild(createField('Payment token', paymentTokenSelect));
-  mount.appendChild(createField('SQMU amount', sqmuAmountInput));
-  mount.appendChild(createField('Agent code', agentCodeInput));
-  mount.appendChild(estimateButton);
-  mount.appendChild(approveButton);
-  mount.appendChild(buyButton);
-  mount.appendChild(actionStatus);
+  grid.appendChild(heading);
+  grid.appendChild(status);
+  grid.appendChild(accountLine);
+  grid.appendChild(chainLine);
+  grid.appendChild(connectButton.wrapper);
+  grid.appendChild(disconnectButton.wrapper);
+  grid.appendChild(renderField('Distributor contract address', contractAddressInput));
+  grid.appendChild(renderField('Property code', propertyCodeInput));
+  grid.appendChild(fetchPropertyButton.wrapper);
+  grid.appendChild(propertyInfo);
+  grid.appendChild(refreshTokensButton.wrapper);
+  grid.appendChild(renderField('Payment token', paymentTokenSelect));
+  grid.appendChild(renderField('SQMU amount', sqmuAmountInput));
+  grid.appendChild(renderField('Agent code', agentCodeInput));
+  grid.appendChild(estimateButton.wrapper);
+  grid.appendChild(approveButton.wrapper);
+  grid.appendChild(buyButton.wrapper);
+  grid.appendChild(actionStatus);
+  mount.appendChild(grid);
 
   return state;
 }
