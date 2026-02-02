@@ -1,4 +1,3 @@
-// email.js - helper to send listing confirmation emails via Apps Script
 import { LISTING_MAIL_URL } from './config.js';
 
 /**
