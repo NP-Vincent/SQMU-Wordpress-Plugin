@@ -1,0 +1,29 @@
+/* Shared baseline for all SQMU widgets */
+.sqmu-widget {
+  font: inherit;
+}
+
+/* Inputs/selects align to theme typography and sizing */
+.sqmu-widget .wp-block-input,
+.sqmu-widget .wp-block-select {
+  width: 100%;
+  font: inherit;
+  padding: 0.5em;
+  box-sizing: border-box;
+}
+
+/* Light layout only (no theme overrides) */
+.sqmu-widget .sqmu-row {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sqmu-widget .sqmu-grid {
+  display: grid;
+  gap: var(--wp--preset--spacing--20, 0.75rem);
+}
+
+.sqmu-widget .sqmu-pre {
+  margin: 0;
+  white-space: pre-wrap;
+}

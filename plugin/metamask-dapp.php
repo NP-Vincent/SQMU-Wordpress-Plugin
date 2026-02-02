@@ -10,6 +10,23 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+function metamask_dapp_should_enqueue_widget_assets() {
+    if (!empty($GLOBALS['sqmu_widget_needs_assets'])) {
+        return true;
+    }
+
+    if (is_singular()) {
+        global $post;
+        if (!$post) {
+            return false;
+        }
+        return has_shortcode($post->post_content, 'metamask_dapp')
+            || has_shortcode($post->post_content, 'sqmu_listing');
+    }
+
+    return false;
+}
+
 function metamask_dapp_enqueue_assets() {
     $asset_file = plugin_dir_path(__FILE__) . 'assets/metamask-dapp.js';
     $asset_path = plugin_dir_url(__FILE__) . 'assets/metamask-dapp.js';
@@ -42,6 +59,15 @@ function metamask_dapp_enqueue_assets() {
         'after'
     );
 
+    if (metamask_dapp_should_enqueue_widget_assets()) {
+        wp_enqueue_style(
+            'sqmu-widgets',
+            plugins_url('assets/sqmu-widgets.css', __FILE__),
+            array(),
+            '1.0.0'
+        );
+    }
+
     wp_enqueue_script('metamask-dapp');
 }
 add_action('wp_enqueue_scripts', 'metamask_dapp_enqueue_assets');
@@ -71,10 +97,12 @@ function metamask_dapp_register_mount($widget, $atts) {
     );
 
     $GLOBALS['metamask_dapp_mounts'][$mount_id] = $config;
+    $GLOBALS['sqmu_widget_needs_assets'] = true;
 
     $attributes = array(
         'id' => esc_attr($mount_id),
-        'data-mmwp-widget' => esc_attr($widget)
+        'data-mmwp-widget' => esc_attr($widget),
+        'class' => 'sqmu-widget'
     );
 
     foreach ($config as $key => $value) {
