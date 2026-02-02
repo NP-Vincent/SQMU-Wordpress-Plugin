@@ -14,6 +14,7 @@ import {
   fromSQMUUnits,
   toSQMUUnits
 } from '../../utils/units.js';
+import { getPaymentTokensFromList } from '../../utils/paymentTokens.js';
 import { createWalletState } from '../../wallet/metamask.js';
 
 const renderStatus = (status, detail) => {
@@ -297,18 +298,19 @@ export function initPortfolioWidget(mount, config = {}) {
   };
 
   const updatePaymentTokens = (tokens) => {
+    const resolvedTokens = getPaymentTokensFromList(tokens);
     paymentTokenSelect.innerHTML = '';
-    if (!tokens.length) {
+    if (!resolvedTokens.length) {
       const option = document.createElement('option');
       option.value = '';
       option.textContent = 'No payment tokens';
       paymentTokenSelect.appendChild(option);
       return;
     }
-    tokens.forEach((token) => {
+    resolvedTokens.forEach((token) => {
       const option = document.createElement('option');
-      option.value = token;
-      option.textContent = token;
+      option.value = token.address;
+      option.textContent = token.symbol;
       paymentTokenSelect.appendChild(option);
     });
     if (config.paymentToken) {

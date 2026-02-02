@@ -5,6 +5,10 @@ import {
   defaultDistributorAddress
 } from '../contracts/atomicDistributor.js';
 import { createErc20Contract } from '../contracts/erc20.js';
+import {
+  getPaymentToken,
+  getPaymentTokensFromList
+} from '../utils/paymentTokens.js';
 
 const USD_DECIMALS = 18n;
 const SQMU_DECIMALS = 2n;
@@ -219,18 +223,19 @@ export function mountDappUI(mount, state, config = {}) {
   };
 
   const updateTokensList = (tokens) => {
+    const resolvedTokens = getPaymentTokensFromList(tokens);
     paymentTokenSelect.innerHTML = '';
-    if (!tokens.length) {
+    if (!resolvedTokens.length) {
       const option = document.createElement('option');
       option.value = '';
       option.textContent = 'No tokens available';
       paymentTokenSelect.appendChild(option);
       return;
     }
-    tokens.forEach((token) => {
+    resolvedTokens.forEach((token) => {
       const option = document.createElement('option');
-      option.value = token;
-      option.textContent = token;
+      option.value = token.address;
+      option.textContent = token.symbol;
       paymentTokenSelect.appendChild(option);
     });
   };
@@ -309,23 +314,24 @@ export function mountDappUI(mount, state, config = {}) {
       }
       const contract = contractForRead();
       const property = await contract.getPropertyInfo(propertyCode);
+      const token = getPaymentToken(tokenAddress);
+      if (!token) {
+        throw new Error('Selected payment token is not supported.');
+      }
       const erc20 = createErc20Contract({
         signer: state.signer,
-        address: tokenAddress
+        address: token.address
       });
-      const [decimals, symbol] = await Promise.all([
-        erc20.decimals(),
-        erc20.symbol()
-      ]);
+      const symbol = await erc20.symbol();
       const totalPrice = calculateTotalPrice(
         property.priceUSD,
         sqmuAmount,
-        decimals
+        token.decimals
       );
-      const formatted = formatUnits(totalPrice, decimals);
+      const formatted = formatUnits(totalPrice, token.decimals);
       renderStatus(
         actionStatus,
-        `Estimated total: ${formatted} ${symbol}`
+        `Estimated total: ${formatted} ${symbol || token.symbol}`
       );
     } catch (error) {
       renderActionError(actionStatus, 'Estimate', error);
@@ -343,15 +349,18 @@ export function mountDappUI(mount, state, config = {}) {
       }
       const contract = contractForRead();
       const property = await contract.getPropertyInfo(propertyCode);
+      const token = getPaymentToken(tokenAddress);
+      if (!token) {
+        throw new Error('Selected payment token is not supported.');
+      }
       const erc20 = createErc20Contract({
         signer: state.signer,
-        address: tokenAddress
+        address: token.address
       });
-      const decimals = await erc20.decimals();
       const totalPrice = calculateTotalPrice(
         property.priceUSD,
         sqmuAmount,
-        decimals
+        token.decimals
       );
       const tx = await erc20.approve(getContractAddress(), totalPrice);
       renderStatus(actionStatus, `Approval submitted: ${tx.hash}`);
