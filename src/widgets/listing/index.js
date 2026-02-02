@@ -5,6 +5,7 @@ import {
   defaultDistributorAddress
 } from '../../contracts/atomicDistributor.js';
 import { createErc20Contract } from '../../contracts/erc20.js';
+import { sendListingConfirmation } from '../../email.js';
 import {
   renderButton,
   renderField,
@@ -318,7 +319,24 @@ export function initListingWidget(mount, config = {}) {
       );
       renderStatus(actionStatus, `Transaction submitted: ${tx.hash}`);
       await tx.wait();
-      renderStatus(actionStatus, 'Purchase confirmed.');
+      const emailAddress = emailInput.value.trim();
+      if (emailAddress) {
+        sendListingConfirmation({
+          email: emailAddress,
+          propertyCode,
+          propertyName: property.name || '',
+          sqmuAmount: sqmuAmountInput.value.trim(),
+          paymentToken: tokenAddress,
+          totalPrice: totalPrice.toString(),
+          tokenDecimals: decimals.toString(),
+          agentCode: agentCodeInput.value.trim(),
+          buyer: state.account ?? '',
+          transactionHash: tx.hash
+        });
+        renderStatus(actionStatus, 'Purchase confirmed. Confirmation email queued.');
+      } else {
+        renderStatus(actionStatus, 'Purchase confirmed.');
+      }
     } catch (error) {
       renderActionError(actionStatus, 'Purchase', error);
     }
