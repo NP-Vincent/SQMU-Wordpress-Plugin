@@ -1,9 +1,19 @@
+import { JsonRpcProvider } from 'ethers';
+import {
+  createDistributorReadOnly,
+  defaultDistributorAddress
+} from '../../contracts/atomicDistributor.js';
 import {
   renderButton,
   renderField,
   renderInput,
   renderSelect
 } from '../../ui/index.js';
+import {
+  formatUsd,
+  fromSQMUUnits,
+  toSQMUUnits
+} from '../../utils/units.js';
 import { createWalletState } from '../../wallet/metamask.js';
 
 const renderStatus = (status, detail) => {
@@ -75,6 +85,16 @@ const defaultListingItem = (item) => ({
   seller: normalizeString(item?.seller)
 });
 
+const getReadProvider = (state, config) => {
+  if (config.rpcUrl) {
+    return new JsonRpcProvider(config.rpcUrl);
+  }
+  if (state.ethersProvider) {
+    return state.ethersProvider;
+  }
+  return null;
+};
+
 export function initPortfolioWidget(mount, config = {}) {
   if (!mount) {
     return null;
@@ -130,12 +150,17 @@ export function initPortfolioWidget(mount, config = {}) {
   const sellButton = renderButton('Create listing', 'sell');
 
   const buyListingSelect = renderSelect({ name: 'listing' });
+  const paymentTokenSelect = renderSelect({ name: 'payment-token' });
   const buyAmountInput = renderInput({
     type: 'number',
     min: '0.01',
     step: '0.01',
     placeholder: 'SQMU amount'
   });
+  const loadPaymentTokensButton = renderButton(
+    'Load payment tokens',
+    'load-payment-tokens'
+  );
   const buyButton = renderButton('Buy SQMU', 'buy');
 
   const portfolioTable = document.createElement('table');
@@ -188,7 +213,23 @@ export function initPortfolioWidget(mount, config = {}) {
     loadPortfolioButton.button.disabled = busy || !state.connected;
     sellButton.button.disabled = busy || !state.connected;
     loadListingsButton.button.disabled = busy;
+    loadPaymentTokensButton.button.disabled = busy;
     buyButton.button.disabled = busy || !state.connected;
+  };
+
+  const getDistributorContract = () => {
+    const address =
+      normalizeString(config.distributorAddress) ||
+      defaultDistributorAddress ||
+      '';
+    if (!address) {
+      return null;
+    }
+    const provider = getReadProvider(state, config);
+    if (!provider) {
+      return null;
+    }
+    return createDistributorReadOnly({ provider, address });
   };
 
   const renderPortfolio = (items) => {
@@ -219,8 +260,8 @@ export function initPortfolioWidget(mount, config = {}) {
       row.innerHTML = `
         <td>${entry.propertyCode || '—'}</td>
         <td>${formatNumber(amount)}</td>
-        <td>$${formatNumber(price)}</td>
-        <td>$${formatNumber(value)}</td>
+        <td>${formatUsd(price)}</td>
+        <td>${formatUsd(value)}</td>
       `;
       portfolioBody.appendChild(row);
     });
@@ -230,7 +271,7 @@ export function initPortfolioWidget(mount, config = {}) {
       <td><strong>Total</strong></td>
       <td><strong>${formatNumber(totalAmount)}</strong></td>
       <td></td>
-      <td><strong>$${formatNumber(totalValue)}</strong></td>
+      <td><strong>${formatUsd(totalValue)}</strong></td>
     `;
     portfolioFoot.appendChild(totalRow);
   };
@@ -248,11 +289,31 @@ export function initPortfolioWidget(mount, config = {}) {
     listings.forEach((listing) => {
       const option = document.createElement('option');
       option.value = listing.id || listing.propertyCode;
-      option.textContent = `${listing.propertyCode || 'Unknown'} — $${formatNumber(
+      option.textContent = `${listing.propertyCode || 'Unknown'} — ${formatUsd(
         listing.priceUsd
       )}`;
       buyListingSelect.appendChild(option);
     });
+  };
+
+  const updatePaymentTokens = (tokens) => {
+    paymentTokenSelect.innerHTML = '';
+    if (!tokens.length) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No payment tokens';
+      paymentTokenSelect.appendChild(option);
+      return;
+    }
+    tokens.forEach((token) => {
+      const option = document.createElement('option');
+      option.value = token;
+      option.textContent = token;
+      paymentTokenSelect.appendChild(option);
+    });
+    if (config.paymentToken) {
+      paymentTokenSelect.value = config.paymentToken;
+    }
   };
 
   const renderListings = (items) => {
@@ -273,11 +334,99 @@ export function initPortfolioWidget(mount, config = {}) {
       row.innerHTML = `
         <td>${listing.propertyCode || '—'}</td>
         <td>${listing.seller || '—'}</td>
-        <td>$${formatNumber(listing.priceUsd)}</td>
+        <td>${formatUsd(listing.priceUsd)}</td>
         <td>${formatNumber(listing.available)}</td>
       `;
       listingsBody.appendChild(row);
     });
+  };
+
+  const resolvePortfolioPricing = async (items) => {
+    const contract = getDistributorContract();
+    if (!contract) {
+      return items;
+    }
+    return Promise.all(
+      items.map(async (entry) => {
+        if (!entry.propertyCode || entry.amount === null) {
+          return entry;
+        }
+        const sqmuUnits = toSQMUUnits(entry.amount);
+        if (sqmuUnits === null) {
+          return entry;
+        }
+        const priceUnits = await contract.getPrice(
+          entry.propertyCode,
+          sqmuUnits
+        );
+        const totalUsd = Number(fromSQMUUnits(priceUnits));
+        if (Number.isNaN(totalUsd)) {
+          return entry;
+        }
+        const priceUsd =
+          entry.amount > 0 ? totalUsd / entry.amount : totalUsd;
+        return {
+          ...entry,
+          priceUsd,
+          valueUsd: totalUsd
+        };
+      })
+    );
+  };
+
+  const resolveListingPricing = async (items) => {
+    const contract = getDistributorContract();
+    if (!contract) {
+      return items;
+    }
+    const priceCache = new Map();
+    return Promise.all(
+      items.map(async (listing) => {
+        if (!listing.propertyCode) {
+          return listing;
+        }
+        if (priceCache.has(listing.propertyCode)) {
+          return {
+            ...listing,
+            priceUsd: priceCache.get(listing.propertyCode)
+          };
+        }
+        const sqmuUnits = toSQMUUnits(1);
+        if (sqmuUnits === null) {
+          return listing;
+        }
+        const priceUnits = await contract.getPrice(
+          listing.propertyCode,
+          sqmuUnits
+        );
+        const priceUsd = Number(fromSQMUUnits(priceUnits));
+        if (Number.isNaN(priceUsd)) {
+          return listing;
+        }
+        priceCache.set(listing.propertyCode, priceUsd);
+        return {
+          ...listing,
+          priceUsd
+        };
+      })
+    );
+  };
+
+  const loadPaymentTokens = async () => {
+    setUiState('loadPaymentTokens', 'Loading payment tokens...');
+    try {
+      const contract = getDistributorContract();
+      if (!contract) {
+        throw new Error('Connect wallet or supply an RPC URL for tokens.');
+      }
+      const tokens = await contract.getPaymentTokens();
+      updatePaymentTokens(tokens);
+      renderStatus(listingsStatus, 'Payment tokens updated.');
+      setUiState('idle', 'Payment tokens loaded.');
+    } catch (error) {
+      renderActionError(listingsStatus, 'Load payment tokens', error);
+      setUiState('idle');
+    }
   };
 
   const loadPortfolio = async () => {
@@ -289,7 +438,8 @@ export function initPortfolioWidget(mount, config = {}) {
         config.portfolio ??
         [];
       const normalized = entries.map(defaultPortfolioItem);
-      renderPortfolio(normalized);
+      const priced = await resolvePortfolioPricing(normalized);
+      renderPortfolio(priced);
       renderStatus(portfolioStatus, 'Portfolio updated.');
       setUiState('idle', 'Portfolio loaded.');
     } catch (error) {
@@ -304,8 +454,9 @@ export function initPortfolioWidget(mount, config = {}) {
       const listings =
         (await config.loadListings?.({ state })) ?? config.listings ?? [];
       const normalized = listings.map(defaultListingItem);
-      renderListings(normalized);
-      updateListingSelect(normalized);
+      const priced = await resolveListingPricing(normalized);
+      renderListings(priced);
+      updateListingSelect(priced);
       renderStatus(listingsStatus, 'Listings updated.');
       setUiState('idle', 'Listings loaded.');
     } catch (error) {
@@ -353,6 +504,7 @@ export function initPortfolioWidget(mount, config = {}) {
     ensureConnected();
     const listingId = normalizeString(buyListingSelect.value);
     const amount = normalizeAmount(buyAmountInput.value);
+    const paymentToken = normalizeString(paymentTokenSelect.value);
 
     if (!listingId || amount === null) {
       renderStatus(actionStatus, 'Select a listing and enter an amount.');
@@ -364,9 +516,20 @@ export function initPortfolioWidget(mount, config = {}) {
       return;
     }
 
+    if (paymentTokenSelect.options.length && !paymentToken) {
+      renderStatus(actionStatus, 'Select a payment token.');
+      return;
+    }
+
     setUiState('buy', 'Submitting purchase...');
     try {
-      await config.buy({ listingId, amount, account: state.account, state });
+      await config.buy({
+        listingId,
+        amount,
+        paymentToken,
+        account: state.account,
+        state
+      });
       renderStatus(actionStatus, 'Purchase submitted.');
       buyAmountInput.value = '';
       setUiState('idle');
@@ -408,6 +571,10 @@ export function initPortfolioWidget(mount, config = {}) {
     loadListings();
   });
 
+  loadPaymentTokensButton.button.addEventListener('click', () => {
+    loadPaymentTokens();
+  });
+
   sellButton.button.addEventListener('click', () => {
     sell();
   });
@@ -436,6 +603,8 @@ export function initPortfolioWidget(mount, config = {}) {
     loadListingsButton.wrapper,
     listingsTable,
     renderField('Buy listing', buyListingSelect),
+    loadPaymentTokensButton.wrapper,
+    renderField('Payment token', paymentTokenSelect),
     renderField('SQMU amount', buyAmountInput),
     buyButton.wrapper
   );
@@ -449,6 +618,7 @@ export function initPortfolioWidget(mount, config = {}) {
   renderPortfolio((config.portfolio ?? []).map(defaultPortfolioItem));
   renderListings((config.listings ?? []).map(defaultListingItem));
   updateListingSelect((config.listings ?? []).map(defaultListingItem));
+  updatePaymentTokens(config.paymentTokens ?? []);
 
   state.subscribe(() => {
     updateConnectionStatus();
