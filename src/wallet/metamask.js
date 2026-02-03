@@ -8,10 +8,26 @@ const DEFAULT_DAPP_METADATA = {
 
 export function createWalletState(config = {}) {
   const listeners = new Set();
-  const sdk = new MetaMaskSDK({
+  const sdkOptions = {
     dappMetadata: config.dappMetadata ?? DEFAULT_DAPP_METADATA,
     infuraAPIKey: config.infuraApiKey ?? config.infuraAPIKey
+  };
+  if (config.sdkOptions && typeof config.sdkOptions === 'object') {
+    Object.assign(sdkOptions, config.sdkOptions);
+  }
+  const transportOverrides = {
+    communicationLayerPreference:
+      config.communicationLayerPreference ?? config.sdkCommunicationLayerPreference,
+    preferDesktop: config.preferDesktop ?? config.sdkPreferDesktop,
+    transport: config.transport ?? config.sdkTransport,
+    transports: config.transports ?? config.sdkTransports
+  };
+  Object.entries(transportOverrides).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      sdkOptions[key] = value;
+    }
   });
+  const sdk = new MetaMaskSDK(sdkOptions);
 
   const normalizeChainId = (chainId) => {
     if (typeof chainId === 'string' && chainId.trim() !== '') {

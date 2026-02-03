@@ -17,11 +17,24 @@ const parseDatasetConfig = (dataset) => {
     if (value === '') {
       return;
     }
+    if (value === 'true' || value === 'false') {
+      config[configKey] = value === 'true';
+      return;
+    }
     if (/^\d+$/.test(value)) {
       config[configKey] = Number.parseInt(value, 10);
-    } else {
-      config[configKey] = value;
+      return;
     }
+    if ((value.startsWith('{') && value.endsWith('}')) ||
+        (value.startsWith('[') && value.endsWith(']'))) {
+      try {
+        config[configKey] = JSON.parse(value);
+        return;
+      } catch (error) {
+        // fall through to treat as string
+      }
+    }
+    config[configKey] = value;
   });
   return config;
 };

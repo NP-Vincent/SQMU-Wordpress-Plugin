@@ -78,6 +78,14 @@ function metamask_dapp_register_mount($widget, $atts) {
         $GLOBALS['metamask_dapp_mounts'] = array();
     }
 
+    if (array_key_exists('prefer_desktop', $atts)) {
+        $atts['prefer_desktop'] = filter_var(
+            $atts['prefer_desktop'],
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE
+        );
+    }
+
     $mount_id = 'mmwp-' . wp_generate_uuid4();
     $config = array_filter(
         array(
@@ -101,7 +109,11 @@ function metamask_dapp_register_mount($widget, $atts) {
             'sqmuDecimals' => $atts['sqmu_decimals'] ?? null,
             'enableSell' => $atts['enable_sell'] ?? null,
             'enableBuy' => $atts['enable_buy'] ?? null,
-            'paymentTokens' => $atts['payment_tokens'] ?? null
+            'paymentTokens' => $atts['payment_tokens'] ?? null,
+            'communicationLayerPreference' => $atts['communication_layer_preference'] ?? null,
+            'preferDesktop' => $atts['prefer_desktop'] ?? null,
+            'transport' => $atts['transport'] ?? null,
+            'transports' => $atts['transports'] ?? null
         ),
         static function ($value) {
             return $value !== null && $value !== '';
@@ -142,7 +154,11 @@ function metamask_dapp_shortcode($atts) {
             'rpc_url' => '',
             'infura_api_key' => '',
             'dapp_name' => '',
-            'dapp_url' => ''
+            'dapp_url' => '',
+            'communication_layer_preference' => '',
+            'prefer_desktop' => '',
+            'transport' => '',
+            'transports' => ''
         ),
         $atts,
         'metamask_dapp'
@@ -164,7 +180,11 @@ function sqmu_listing_shortcode($atts) {
             'property_code' => '',
             'token_address' => '',
             'agent_code' => '',
-            'email' => ''
+            'email' => '',
+            'communication_layer_preference' => '',
+            'prefer_desktop' => '',
+            'transport' => '',
+            'transports' => ''
         ),
         $atts,
         'sqmu_listing'
@@ -189,7 +209,11 @@ function sqmu_portfolio_shortcode($atts) {
             'sqmu_decimals' => '',
             'enable_sell' => '',
             'enable_buy' => '',
-            'payment_token_allowlist' => ''
+            'payment_token_allowlist' => '',
+            'communication_layer_preference' => '',
+            'prefer_desktop' => '',
+            'transport' => '',
+            'transports' => ''
         ),
         $atts,
         'sqmu_portfolio'
