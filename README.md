@@ -1,77 +1,60 @@
-# MetaMask WordPress dApp – Build & Codex Specification
+# MetaMask WordPress dApp – SQMU Widgets Baseline
 
 ## Purpose
 
-This repository is the **canonical starting point** for building MetaMask SDK–compatible interfaces that:
+This repository defines a **WordPress-first MetaMask dApp plugin** that ships a
+single JavaScript bundle and a set of SQMU-focused widgets. The current scope is
+centered on:
 
-- Are written as a modern JavaScript dApp
-- Build into static, browser‑safe assets
-- Are deployable as a **WordPress plugin** (WordPress.com compatible)
-- Can evolve into a **full embedded dApp experience** across a WordPress site
+- MetaMask wallet connection helpers
+- SQMU distributor/listing purchase flows
+- SQMU portfolio readouts
+- WordPress shortcodes that mount each widget
 
-This repo intentionally avoids retrofitting prior experiments. It defines a **clean, deterministic baseline**.
+The project keeps all WordPress integration in PHP and all wallet/contract logic
+in JavaScript to preserve a clean separation of concerns.
 
 ---
 
 ## Design Principles
 
-1. **Single source of truth** – one repository
-2. **No runtime Node.js in production** – Node is CI‑only
-3. **Deterministic builds** – esbuild only
+1. **Single bundle, single initializer** – one public JavaScript entrypoint.
+2. **No runtime Node.js in production** – Node is build-time only.
+3. **Deterministic builds** – esbuild creates a consistent output bundle.
 4. **Strict separation of concerns**
-   - JavaScript: wallet + dApp logic
+   - JavaScript: wallet + contract + UI logic
    - PHP: WordPress glue, configuration, rendering
-5. **WordPress only receives compiled assets**
-
-## Theme Reference
-
-Theme styling references live in `references/wordpress/theme/masu-wpcom` and should be used to keep plugin UI aligned with Masu typography and component primitives.
+5. **WordPress only receives compiled assets** (JS/CSS)
 
 ---
 
-## Repository Structure
+## Repository Structure (Current)
 
 ```
 metamask-wp-dapp/
-├─ src/                    # JavaScript source (ESM)
-│  ├─ wallet/
-│  │  └─ metamask.js       # MetaMask SDK integration
-│  ├─ ui/
-│  │  └─ index.js          # UI wiring (DOM‑agnostic)
-│  └─ index.js             # Single public entrypoint
-│
+├─ src/
+│  ├─ contracts/           # Contract ABIs + helpers
+│  ├─ ui/                  # Shared DOM helpers
+│  ├─ wallet/              # MetaMask SDK integration
+│  ├─ widgets/             # SQMU widgets (listing + portfolio)
+│  ├─ config.js            # On-chain addresses + mail endpoints
+│  └─ index.js             # Public JS initializer
 ├─ plugin/
-│  ├─ metamask-dapp.php    # WordPress plugin bootstrap
-│  ├─ assets/              # Built assets injected by CI
+│  ├─ metamask-dapp.php    # WordPress plugin bootstrap + shortcodes
+│  ├─ assets/
+│  │  └─ sqmu-widgets.css  # Widget styling
 │  └─ readme.txt
-│
 ├─ dist/                   # Local build output (gitignored)
-│
-├─ .github/workflows/
-│  └─ wpcom.yml            # Build + package + deploy workflow
-│
 ├─ esbuild.config.mjs
 ├─ package.json
-├─ package-lock.json
-├─ .gitignore
 └─ README.md
 ```
 
 ---
 
-## JavaScript Architecture
+## Public JavaScript API
 
-### Rules
-
-- Use **@metamask/sdk** directly
-- Use **ethers.js** only for provider/signer abstraction
-- No WordPress‑specific code in JavaScript
-- No DOM assumptions beyond a single mount element
-- No runtime environment variables
-
-### Public API Contract
-
-The JavaScript bundle must expose **one and only one** public initializer:
+The JavaScript bundle exposes **one initializer**:
 
 ```js
 export function initMetaMaskDapp(config) {
@@ -79,152 +62,70 @@ export function initMetaMaskDapp(config) {
 }
 ```
 
-All future expansion (UI, contracts, state) flows from this initializer.
+Runtime configuration is injected by PHP and passed to
+`window.MetaMaskWP.initMetaMaskDapp`.
 
----
+### Mounting behavior
 
-## Build System (esbuild)
+- If no widget mounts exist, the baseline MetaMask dApp UI mounts.
+- If mounts exist, the initializer looks for `data-mmwp-widget` on each mount
+  and loads the matching widget.
 
-- Single bundle
-- Browser target
-- No dynamic imports
-- Deterministic output
+Supported widget keys:
 
-**Conceptual build output:**
-
-```js
-window.MetaMaskWP.initMetaMaskDapp(...)
-```
-
-The build produces:
-
-```
-dist/metamask-dapp.js
-```
-
-This is the **only JavaScript file** WordPress will ever load.
+- `metamask-dapp`
+- `sqmu-listing`
+- `sqmu-portfolio`
 
 ---
 
 ## WordPress Plugin Responsibilities
 
-### PHP Scope (and limits)
+The WordPress plugin provides:
 
-The WordPress plugin **does not contain blockchain logic**.
+- Shortcodes that render widget mount points
+- Script/style enqueueing
+- Runtime configuration injection (PHP → JS)
 
-It is responsible only for:
+Shortcodes available:
 
-- Registering and enqueueing the compiled JS
-- Injecting runtime configuration
-- Rendering a mount point
-- Providing shortcodes / blocks
+- `[metamask_dapp]` – base wallet + distributor UI
+- `[sqmu_listing]` – SQMU listing purchase flow
+- `[sqmu_portfolio]` – SQMU holdings/portfolio view
 
-### Configuration Injection
-
-All environment‑specific values flow **PHP → JS**:
-
-- Infura API key
-- Chain ID
-- Contract addresses
-- Feature flags
-
-Injected via:
-
-```php
-wp_add_inline_script(
-  'metamask-dapp',
-  'window.METAMASK_DAPP_CONFIG = ' . json_encode($config),
-  'before'
-);
-```
-
-JavaScript **must never** read from `.env` or assume WordPress globals.
+Configuration values are passed via shortcode attributes and injected into the
+bundle via `window.METAMASK_DAPP_CONFIG`.
 
 ---
 
-## GitHub Actions – WordPress.com Deployment Model
+## Build System (esbuild)
 
-### Workflow: `.github/workflows/wpcom.yml`
-
-This workflow is the **only deployment pipeline**.
-
-### Responsibilities
-
-1. Install Node.js
-2. `npm ci`
-3. `npm run build`
-4. Stage WordPress plugin directory
-5. Upload artifact **named exactly `wpcom`**
-
-### Artifact Contents
-
-The uploaded artifact must represent **exactly** what should exist at:
+Build output is always a single bundle:
 
 ```
-/wp-content/plugins/metamask-dapp/
+dist/metamask-dapp.js
 ```
 
-Example staged structure:
+The WordPress.com workflow stages that output into:
 
 ```
-wpcom-stage/
-└─ metamask-dapp/
-   ├─ metamask-dapp.php
-   ├─ assets/
-   │  └─ metamask-dapp.js
-   └─ readme.txt
+wpcom-stage/metamask-dapp/assets/metamask-dapp.js
 ```
 
-WordPress.com copies this verbatim.
+The CSS companion file lives in `plugin/assets/sqmu-widgets.css`.
 
 ---
 
-## Deployment Target
+## Development Direction
 
-- Platform: WordPress.com
-- Mode: Advanced GitHub Deployment
-- Destination directory:
+The repository is evolving into a focused SQMU widget suite while maintaining a
+minimal, framework-agnostic JavaScript core. Current and upcoming priorities:
 
-```
-/wp-content/plugins/metamask-dapp
-```
+1. Expand SQMU listing + portfolio UX within the existing widget model.
+2. Keep wallet/contract logic isolated from WordPress-specific concerns.
+3. Preserve the single initializer + deterministic build pipeline.
+4. Align UI styling with Masu theme references in
+   `references/wordpress/theme/masu-wpcom`.
 
-Plugin activation and updates are handled entirely by WordPress.
-
----
-
-## Codex Rules (for contributors and AI agents)
-
-- Do not introduce Node dependencies into PHP
-- Do not reference WordPress globals in JS
-- Do not commit build output (`dist/`) unless explicitly required
-- Do not add alternative deployment workflows
-- Do not add Pages, PM2, or server‑side assumptions
-
-This repository is **WordPress‑first, dApp‑capable by design**.
-
----
-
-## Evolution Path (Intentional)
-
-This baseline supports incremental expansion without architectural change:
-
-1. Shortcode‑based widgets
-2. Gutenberg blocks
-3. Shared wallet session state
-4. Contract interaction layers
-5. Multi‑page embedded dApp UX
-
-All without changing:
-
-- the build system
-- the deployment model
-- the MetaMask integration contract
-
----
-
-## Status
-
-This repository is the **reset point**.
-
-Anything not aligned with this document is considered legacy or experimental and should not be merged without explicit justification.
+Anything that breaks these constraints should be treated as experimental and
+requires explicit review.
