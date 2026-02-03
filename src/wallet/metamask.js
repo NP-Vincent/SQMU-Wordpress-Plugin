@@ -13,6 +13,26 @@ export function createWalletState(config = {}) {
     infuraAPIKey: config.infuraApiKey ?? config.infuraAPIKey
   });
 
+  const normalizeChainId = (chainId) => {
+    if (typeof chainId === 'string' && chainId.trim() !== '') {
+      return chainId.startsWith('0x')
+        ? Number.parseInt(chainId, 16)
+        : Number.parseInt(chainId, 10);
+    }
+    if (typeof chainId === 'number') {
+      return chainId;
+    }
+    return null;
+  };
+
+  const toHexChainId = (chainId) => {
+    const normalized = normalizeChainId(chainId);
+    if (!normalized) {
+      return null;
+    }
+    return `0x${normalized.toString(16)}`;
+  };
+
   const state = {
     connected: false,
     account: null,
@@ -24,6 +44,29 @@ export function createWalletState(config = {}) {
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    async ensureChain(chainId = config.chainId) {
+      const expected = normalizeChainId(chainId);
+      if (!expected || !state.provider?.request) {
+        return;
+      }
+      if (state.chainId && state.chainId === expected) {
+        return;
+      }
+      const hexChainId = toHexChainId(expected);
+      if (!hexChainId) {
+        return;
+      }
+      await state.provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: hexChainId }]
+      });
+      const currentChain =
+        (await state.provider
+          .request({ method: 'eth_chainId' })
+          .catch(() => null)) ?? expected;
+      updateChainId(currentChain);
+      notify();
     }
   };
 
@@ -75,6 +118,11 @@ export function createWalletState(config = {}) {
     state.signer = state.connected ? await state.ethersProvider.getSigner() : null;
     const network = await state.ethersProvider.getNetwork();
     updateChainId(Number(network.chainId));
+    await state.ensureChain();
+    if (state.ethersProvider) {
+      const refreshedNetwork = await state.ethersProvider.getNetwork();
+      updateChainId(Number(refreshedNetwork.chainId));
+    }
     notify();
     return state;
   };

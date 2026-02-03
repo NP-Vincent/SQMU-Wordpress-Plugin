@@ -235,10 +235,11 @@ export function initListingWidget(mount, config = {}) {
     });
   };
 
-  const contractForWrite = () => {
+  const contractForWrite = async () => {
     if (!state.signer) {
       throw new Error('Connect MetaMask first.');
     }
+    await state.ensureChain?.(config.chainId);
     enforceChain(state, config);
     return createDistributorContract({
       signer: state.signer,
@@ -336,7 +337,7 @@ export function initListingWidget(mount, config = {}) {
       if (!token) {
         throw new Error('Selected payment token is not supported.');
       }
-      const contract = contractForWrite();
+      const contract = await contractForWrite();
       const property = await contract.getPropertyInfo(propertyCode);
       const erc20 = createErc20Contract({
         signer: state.signer,
