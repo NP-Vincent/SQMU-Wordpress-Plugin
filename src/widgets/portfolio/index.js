@@ -5,9 +5,12 @@ import {
 } from '../../contracts/atomicDistributor.js';
 import {
   renderButton,
+  renderCard,
   renderField,
   renderInput,
-  renderSelect
+  renderSection,
+  renderSelect,
+  renderTableWrap
 } from '../../ui/index.js';
 import {
   formatUsd,
@@ -110,16 +113,21 @@ export function initPortfolioWidget(mount, config = {}) {
   mount.innerHTML = '';
   mount.classList.add('sqmu-widget');
 
-  const grid = document.createElement('div');
-  grid.className = 'sqmu-grid';
-
-  const heading = document.createElement('h3');
-  heading.textContent = 'SQMU Portfolio';
-
-  const connectionStatus = document.createElement('p');
-  const portfolioStatus = document.createElement('p');
-  const listingsStatus = document.createElement('p');
   const actionStatus = document.createElement('p');
+  const connectionStatus = document.createElement('p');
+  const { card } = renderCard({
+    title: 'SQMU Portfolio',
+    statusLines: [connectionStatus, actionStatus]
+  });
+
+  const portfolioStatusInput = renderInput({
+    readOnly: true,
+    value: 'Portfolio not loaded.'
+  });
+  const listingsStatusInput = renderInput({
+    readOnly: true,
+    value: 'Listings not loaded.'
+  });
 
   const connectButton = renderButton('Connect MetaMask', 'connect');
   const disconnectButton = renderButton('Disconnect wallet', 'disconnect');
@@ -133,6 +141,8 @@ export function initPortfolioWidget(mount, config = {}) {
     'load-listings'
   );
 
+  const accountInput = renderInput({ readOnly: true, value: 'N/A' });
+  const chainInput = renderInput({ readOnly: true, value: 'N/A' });
   const sellPropertyInput = renderInput({
     placeholder: 'Property code'
   });
@@ -205,6 +215,8 @@ export function initPortfolioWidget(mount, config = {}) {
         ? `Connected to ${state.account ?? ''}`
         : 'Wallet not connected.'
     );
+    accountInput.value = state.account ?? 'N/A';
+    chainInput.value = state.chainId ?? 'N/A';
   };
 
   const updateControls = () => {
@@ -423,10 +435,12 @@ export function initPortfolioWidget(mount, config = {}) {
       }
       const tokens = await contract.getPaymentTokens();
       updatePaymentTokens(tokens);
-      renderStatus(listingsStatus, 'Payment tokens updated.');
+      listingsStatusInput.value = 'Payment tokens updated.';
       setUiState('idle', 'Payment tokens loaded.');
     } catch (error) {
-      renderActionError(listingsStatus, 'Load payment tokens', error);
+      listingsStatusInput.value = `Load payment tokens failed: ${formatErrorMessage(
+        error
+      )}`;
       setUiState('idle');
     }
   };
@@ -442,10 +456,12 @@ export function initPortfolioWidget(mount, config = {}) {
       const normalized = entries.map(defaultPortfolioItem);
       const priced = await resolvePortfolioPricing(normalized);
       renderPortfolio(priced);
-      renderStatus(portfolioStatus, 'Portfolio updated.');
+      portfolioStatusInput.value = 'Portfolio updated.';
       setUiState('idle', 'Portfolio loaded.');
     } catch (error) {
-      renderActionError(portfolioStatus, 'Load portfolio', error);
+      portfolioStatusInput.value = `Load portfolio failed: ${formatErrorMessage(
+        error
+      )}`;
       setUiState('idle');
     }
   };
@@ -459,10 +475,12 @@ export function initPortfolioWidget(mount, config = {}) {
       const priced = await resolveListingPricing(normalized);
       renderListings(priced);
       updateListingSelect(priced);
-      renderStatus(listingsStatus, 'Listings updated.');
+      listingsStatusInput.value = 'Listings updated.';
       setUiState('idle', 'Listings loaded.');
     } catch (error) {
-      renderActionError(listingsStatus, 'Load listings', error);
+      listingsStatusInput.value = `Load listings failed: ${formatErrorMessage(
+        error
+      )}`;
       setUiState('idle');
     }
   };
@@ -585,38 +603,60 @@ export function initPortfolioWidget(mount, config = {}) {
     buy();
   });
 
-  grid.append(
-    heading,
-    connectionStatus,
-    connectButton.wrapper,
-    disconnectButton.wrapper,
-    actionStatus,
-    document.createElement('hr'),
-    renderField('Portfolio status', portfolioStatus),
-    loadPortfolioButton.wrapper,
-    portfolioTable,
-    document.createElement('hr'),
-    renderField('Sell property', sellPropertyInput),
-    renderField('SQMU amount', sellAmountInput),
-    renderField('USD price per SQMU', sellPriceInput),
-    sellButton.wrapper,
-    document.createElement('hr'),
-    renderField('Listings status', listingsStatus),
-    loadListingsButton.wrapper,
-    listingsTable,
-    renderField('Buy listing', buyListingSelect),
-    loadPaymentTokensButton.wrapper,
-    renderField('Payment token', paymentTokenSelect),
-    renderField('SQMU amount', buyAmountInput),
-    buyButton.wrapper
+  const walletSection = renderSection({
+    title: 'Wallet',
+    form: [
+      renderField('Account', accountInput),
+      renderField('Chain ID', chainInput)
+    ],
+    actions: [connectButton.wrapper, disconnectButton.wrapper]
+  });
+
+  const portfolioSection = renderSection({
+    title: 'Portfolio',
+    form: [renderField('Portfolio status', portfolioStatusInput)],
+    actions: [loadPortfolioButton.wrapper],
+    body: [renderTableWrap(portfolioTable)]
+  });
+
+  const sellSection = renderSection({
+    title: 'Sell SQMU',
+    form: [
+      renderField('Sell property', sellPropertyInput),
+      renderField('SQMU amount', sellAmountInput),
+      renderField('USD price per SQMU', sellPriceInput)
+    ],
+    actions: [sellButton.wrapper]
+  });
+
+  const listingsSection = renderSection({
+    title: 'Listings',
+    form: [renderField('Listings status', listingsStatusInput)],
+    actions: [loadListingsButton.wrapper],
+    body: [renderTableWrap(listingsTable)]
+  });
+
+  const purchaseSection = renderSection({
+    title: 'Purchase SQMU',
+    form: [
+      renderField('Buy listing', buyListingSelect),
+      renderField('Payment token', paymentTokenSelect),
+      renderField('SQMU amount', buyAmountInput)
+    ],
+    actions: [loadPaymentTokensButton.wrapper, buyButton.wrapper]
+  });
+
+  card.append(
+    walletSection,
+    portfolioSection,
+    sellSection,
+    listingsSection,
+    purchaseSection
   );
 
-  mount.appendChild(grid);
+  mount.appendChild(card);
 
   renderStatus(actionStatus, 'Ready.');
-  renderStatus(portfolioStatus, 'Portfolio not loaded.');
-  renderStatus(listingsStatus, 'Listings not loaded.');
-
   renderPortfolio((config.portfolio ?? []).map(defaultPortfolioItem));
   renderListings((config.listings ?? []).map(defaultListingItem));
   updateListingSelect((config.listings ?? []).map(defaultListingItem));

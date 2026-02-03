@@ -13,18 +13,30 @@ import {
 const USD_DECIMALS = 18n;
 const SQMU_DECIMALS = 2n;
 
-export const renderButton = (label, action) => {
+export const renderButton = (label, action, variant) => {
+  const config =
+    typeof label === 'object'
+      ? label
+      : {
+          label,
+          action,
+          variant
+        };
+
   const actions = document.createElement('div');
-  actions.className = 'wp-block-buttons sqmu-actions';
+  actions.className = 'wp-block-buttons';
 
   const buttonWrapper = document.createElement('div');
   buttonWrapper.className = 'wp-block-button';
+  if (config.variant) {
+    buttonWrapper.classList.add(`is-style-${config.variant}`);
+  }
 
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'wp-block-button__link';
-  button.dataset.action = action;
-  button.textContent = label;
+  button.dataset.action = config.action;
+  button.textContent = config.label;
 
   buttonWrapper.appendChild(button);
   actions.appendChild(buttonWrapper);
@@ -61,10 +73,122 @@ export const renderSelect = ({ name } = {}) => {
 };
 
 export const renderField = (labelText, input) => {
-  const wrapper = document.createElement('label');
-  wrapper.className = 'sqmu-row';
-  wrapper.textContent = labelText;
-  wrapper.appendChild(input);
+  const config =
+    typeof labelText === 'object'
+      ? labelText
+      : {
+          label: labelText,
+          control: input
+        };
+  const wrapper = document.createElement('div');
+  wrapper.className = 'sqmu-field';
+
+  const label = document.createElement('div');
+  label.className = 'sqmu-label';
+  label.textContent = config.label;
+
+  wrapper.appendChild(label);
+  if (config.control) {
+    wrapper.appendChild(config.control);
+  }
+  return wrapper;
+};
+
+export const renderForm = (fields = []) => {
+  const form = document.createElement('div');
+  form.className = 'sqmu-form';
+  fields.forEach((field) => {
+    if (field) {
+      form.appendChild(field);
+    }
+  });
+  return form;
+};
+
+export const renderActions = (actions = []) => {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'sqmu-actions';
+  actions.forEach((action) => {
+    if (action) {
+      wrapper.appendChild(action);
+    }
+  });
+  return wrapper;
+};
+
+export const renderCard = ({ title, statusLines = [] } = {}) => {
+  const card = document.createElement('div');
+  card.className = 'sqmu-card';
+
+  const header = document.createElement('div');
+  header.className = 'sqmu-header';
+
+  const titleElement = document.createElement('h3');
+  titleElement.className = 'sqmu-title';
+  titleElement.textContent = title ?? '';
+
+  const statusWrap = document.createElement('div');
+  statusWrap.className = 'sqmu-status';
+
+  statusLines.forEach((line) => {
+    if (!line) {
+      return;
+    }
+    if (typeof line === 'string') {
+      const textLine = document.createElement('p');
+      textLine.textContent = line;
+      statusWrap.appendChild(textLine);
+    } else {
+      statusWrap.appendChild(line);
+    }
+  });
+
+  header.append(titleElement, statusWrap);
+  card.appendChild(header);
+
+  return {
+    card,
+    header,
+    titleElement,
+    statusWrap
+  };
+};
+
+export const renderSection = ({
+  title,
+  form = [],
+  actions = [],
+  body = []
+} = {}) => {
+  const section = document.createElement('section');
+  section.className = 'sqmu-section';
+
+  const sectionTitle = document.createElement('h4');
+  sectionTitle.className = 'sqmu-section-title';
+  sectionTitle.textContent = title ?? '';
+
+  const formEl = renderForm(form);
+  const actionsEl = renderActions(actions);
+
+  section.appendChild(sectionTitle);
+  section.appendChild(formEl);
+  section.appendChild(actionsEl);
+
+  body.forEach((item) => {
+    if (item) {
+      section.appendChild(item);
+    }
+  });
+
+  return section;
+};
+
+export const renderTableWrap = (table) => {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'sqmu-table-wrap';
+  if (table) {
+    wrapper.appendChild(table);
+  }
   return wrapper;
 };
 

@@ -8,8 +8,10 @@ import { createErc20Contract } from '../../contracts/erc20.js';
 import { sendListingConfirmation } from '../../email.js';
 import {
   renderButton,
+  renderCard,
   renderField,
   renderInput,
+  renderSection,
   renderSelect
 } from '../../ui/index.js';
 import {
@@ -154,19 +156,18 @@ export function initListingWidget(mount, config = {}) {
   mount.innerHTML = '';
   mount.classList.add('sqmu-widget');
 
-  const grid = document.createElement('div');
-  grid.className = 'sqmu-grid';
-
-  const heading = document.createElement('h3');
-  heading.textContent = 'SQMU Listing';
-
-  const status = document.createElement('p');
-  const accountLine = document.createElement('p');
-  const chainLine = document.createElement('p');
+  const connectionStatus = document.createElement('p');
+  const actionStatus = document.createElement('p');
+  const { card } = renderCard({
+    title: 'SQMU Listing',
+    statusLines: [connectionStatus, actionStatus]
+  });
 
   const connectButton = renderButton('Connect MetaMask', 'connect');
   const disconnectButton = renderButton('Disconnect wallet', 'disconnect');
 
+  const accountInput = renderInput({ readOnly: true, value: 'N/A' });
+  const chainInput = renderInput({ readOnly: true, value: 'N/A' });
   const contractAddressInput = renderInput({
     placeholder: '0x...',
     value: resolvedConfig.contractAddress
@@ -209,8 +210,6 @@ export function initListingWidget(mount, config = {}) {
 
   const buyButton = renderButton('Buy SQMU', 'buy');
 
-  const actionStatus = document.createElement('p');
-
   const getContractAddress = () =>
     contractAddressInput.value.trim() ||
     resolvedConfig.contractAddress ||
@@ -219,13 +218,13 @@ export function initListingWidget(mount, config = {}) {
 
   const updateConnectionStatus = () => {
     renderStatus(
-      status,
+      connectionStatus,
       state.connected
         ? `Connected to ${state.account ?? ''}`
         : 'Wallet not connected.'
     );
-    accountLine.textContent = `Account: ${state.account ?? 'N/A'}`;
-    chainLine.textContent = `Chain ID: ${state.chainId ?? 'N/A'}`;
+    accountInput.value = state.account ?? 'N/A';
+    chainInput.value = state.chainId ?? 'N/A';
   };
 
   const contractForRead = () => {
@@ -393,25 +392,40 @@ export function initListingWidget(mount, config = {}) {
 
   updateConnectionStatus();
   state.subscribe(updateConnectionStatus);
+  renderStatus(actionStatus, 'Ready.');
 
-  grid.appendChild(heading);
-  grid.appendChild(status);
-  grid.appendChild(accountLine);
-  grid.appendChild(chainLine);
-  grid.appendChild(connectButton.wrapper);
-  grid.appendChild(disconnectButton.wrapper);
-  grid.appendChild(renderField('Distributor contract address', contractAddressInput));
-  grid.appendChild(renderField('Property code', propertyCodeInput));
-  grid.appendChild(loadPropertyButton.wrapper);
-  grid.appendChild(renderField('Available SQMU', availableField));
-  grid.appendChild(refreshTokensButton.wrapper);
-  grid.appendChild(renderField('Payment token', paymentTokenSelect));
-  grid.appendChild(renderField('SQMU amount', sqmuAmountInput));
-  grid.appendChild(renderField('Agent code', agentCodeInput));
-  grid.appendChild(renderField('Email', emailInput));
-  grid.appendChild(buyButton.wrapper);
-  grid.appendChild(actionStatus);
-  mount.appendChild(grid);
+  const walletSection = renderSection({
+    title: 'Wallet',
+    form: [
+      renderField('Account', accountInput),
+      renderField('Chain ID', chainInput)
+    ],
+    actions: [connectButton.wrapper, disconnectButton.wrapper]
+  });
+
+  const propertySection = renderSection({
+    title: 'Property',
+    form: [
+      renderField('Distributor contract address', contractAddressInput),
+      renderField('Property code', propertyCodeInput),
+      renderField('Available SQMU', availableField)
+    ],
+    actions: [loadPropertyButton.wrapper]
+  });
+
+  const paymentSection = renderSection({
+    title: 'Payment',
+    form: [
+      renderField('Payment token', paymentTokenSelect),
+      renderField('SQMU amount', sqmuAmountInput),
+      renderField('Agent code', agentCodeInput),
+      renderField('Email', emailInput)
+    ],
+    actions: [refreshTokensButton.wrapper, buyButton.wrapper]
+  });
+
+  card.append(walletSection, propertySection, paymentSection);
+  mount.appendChild(card);
 
   return state;
 }
