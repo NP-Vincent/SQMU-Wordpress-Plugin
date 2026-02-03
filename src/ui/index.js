@@ -241,6 +241,25 @@ const calculateTotalPrice = (priceUSD, sqmuAmount, tokenDecimals) => {
   return (priceUSD * sqmuAmount * decimals) / 10n ** USD_DECIMALS;
 };
 
+const normalizeChainId = (chainId) => {
+  if (typeof chainId === 'string' && chainId.trim() !== '') {
+    return chainId.startsWith('0x')
+      ? Number.parseInt(chainId, 16)
+      : Number.parseInt(chainId, 10);
+  }
+  if (typeof chainId === 'number') {
+    return chainId;
+  }
+  return null;
+};
+
+const enforceChain = (state, config) => {
+  const expected = normalizeChainId(config.chainId);
+  if (expected && state.chainId && expected !== state.chainId) {
+    throw new Error(`Switch to chain ${expected} before proceeding.`);
+  }
+};
+
 export function mountDappUI(mount, state, config = {}) {
   if (!mount) {
     return null;
@@ -319,6 +338,12 @@ export function mountDappUI(mount, state, config = {}) {
     }
   };
 
+  const ensureWriteReady = async () => {
+    ensureConnected();
+    await state.ensureChain?.(config.chainId);
+    enforceChain(state, config);
+  };
+
   const updateConnectionStatus = () => {
     renderStatus(
       status,
@@ -338,8 +363,8 @@ export function mountDappUI(mount, state, config = {}) {
     });
   };
 
-  const contractForWrite = () => {
-    ensureConnected();
+  const contractForWrite = async () => {
+    await ensureWriteReady();
     return createDistributorContract({
       signer: state.signer,
       address: getContractAddress()
@@ -471,6 +496,7 @@ export function mountDappUI(mount, state, config = {}) {
       if (!propertyCode || sqmuAmount === null || !tokenAddress) {
         throw new Error('Fill property, amount, and token.');
       }
+      await ensureWriteReady();
       const contract = contractForRead();
       const property = await contract.getPropertyInfo(propertyCode);
       const token = getPaymentToken(tokenAddress);
@@ -505,7 +531,7 @@ export function mountDappUI(mount, state, config = {}) {
         throw new Error('Fill property, amount, and token.');
       }
       const agentCode = agentCodeInput.value.trim();
-      const contract = contractForWrite();
+      const contract = await contractForWrite();
       const tx = await contract.buySQMU(
         propertyCode,
         sqmuAmount,
