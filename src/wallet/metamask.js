@@ -33,6 +33,9 @@ export function createWalletState(config = {}) {
     return `0x${normalized.toString(16)}`;
   };
 
+  const isUnknownChainError = (error) =>
+    error?.code === 4902 || error?.data?.originalError?.code === 4902;
+
   const state = {
     connected: false,
     account: null,
@@ -57,15 +60,47 @@ export function createWalletState(config = {}) {
       if (!hexChainId) {
         return;
       }
-      await state.provider.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: hexChainId }]
-      });
-      const currentChain =
-        (await state.provider
+      let currentChain = null;
+      try {
+        await state.provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: hexChainId }]
+        });
+        currentChain = await state.provider
           .request({ method: 'eth_chainId' })
-          .catch(() => null)) ?? expected;
-      updateChainId(currentChain);
+          .catch(() => null);
+      } catch (error) {
+        if (!isUnknownChainError(error)) {
+          throw error;
+        }
+        await state.provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [
+            {
+              chainId: hexChainId,
+              chainName: config.chainName,
+              rpcUrls: config.rpcUrl ? [config.rpcUrl] : [],
+              nativeCurrency: config.nativeCurrency,
+              blockExplorerUrls: config.blockExplorerUrl
+                ? [config.blockExplorerUrl]
+                : []
+            }
+          ]
+        });
+        currentChain = await state.provider
+          .request({ method: 'eth_chainId' })
+          .catch(() => null);
+        if (normalizeChainId(currentChain) !== expected) {
+          await state.provider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: hexChainId }]
+          });
+          currentChain = await state.provider
+            .request({ method: 'eth_chainId' })
+            .catch(() => null);
+        }
+      }
+      updateChainId(currentChain ?? expected);
       notify();
     }
   };
